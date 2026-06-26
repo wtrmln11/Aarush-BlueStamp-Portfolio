@@ -1,10 +1,7 @@
 # Facial Recognition System
 This project uses a Raspberry Pi to build a real-time facial recognition system capable of identifying people and sending email notifications when a face is detected. Using OpenCV and machine learning libraries, the Pi is trained on a custom image dataset to recognize specific individuals through a connected camera. 
 You should comment out all portions of your portfolio that you have not completed yet, as well as any instructions:
-```HTML 
-<!--- This is an HTML comment in Markdown -->
-<!--- Anything between these symbols will not render on the published site -->
-```
+
 
 | **Engineer** | **School** | **Area of Interest** | **Grade** |
 |:--:|:--:|:--:|:--:|
