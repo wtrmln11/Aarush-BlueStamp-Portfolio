@@ -7,7 +7,7 @@ You should comment out all portions of your portfolio that you have not complete
 |:--:|:--:|:--:|:--:|
 | AarushH | Evergreen Valley Highschool | Computer Engineering | Incoming Senior |
 
-
+ 
 ![Headstone Image](Aarush H.jpeg)
 <!--  
 # Final Milestone
