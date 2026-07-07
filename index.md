@@ -36,11 +36,13 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 # First Milestone
 
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-cdcdcdcdcdc looo
+- Dowloaded Open Computer Vision and setup python scripts that take pictures after I click the spacebar and store it in whoever's name is at the top in their own file so the model can associate names with faces.
+- Suprised how bad the camera is, really only looks good when I was right in front of it.
+- Sometimes the images I collected became corrupted and had to mass delete many images because I didn't know which ones had gone bad
+- In order to move on I want to it to be able to detect me and someone else
 
 # Starter Milestone
 
