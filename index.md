@@ -1,27 +1,25 @@
 # Facial Recognition System
 
-This project uses a Raspberry Pi to build a real-time facial recognition system capable of identifying people and sending email notifications when a face is detected. Using OpenCV and machine learning libraries, the Pi is trained on a custom image dataset to recognize specific individuals through a connected camera.
-
-You should comment out all portions of your portfolio that you have not completed yet, as well as any instructions.
+This project uses a Raspberry Pi to build a real-time facial recognition system capable of identifying people at distance using a 64MP camera, digital zoom, and machine learning. The system is trained on a custom image dataset to recognize specific individuals through a connected camera with live confidence scoring.
 
 | **Engineer** | **School** | **Area of Interest** | **Grade** |
 |:--:|:--:|:--:|:--:|
-| AarushH | Evergreen Valley Highschool | Computer Engineering | Incoming Senior |
+| Aarush H | Evergreen Valley High School | Computer Engineering | Incoming Senior |
 
 ![Headstone Image](Aarush%20H.jpeg)
 
+---
+
+## Final Milestone
+
 <!--
-# Final Milestone
-
-**Don't forget to replace the text below with the embedding for your milestone video. Go to Youtube, click Share -> Embed, and copy and paste the code to replace what's below.**
-
 <iframe width="560" height="315" src="https://www.youtube.com/embed/F7M7imOVGug" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" allowfullscreen></iframe>
 
-For your final milestone, explain the outcome of your project. Key details to include are:
-- What you've accomplished since your previous milestone
-- What your biggest challenges and triumphs were at BSE
-- A summary of key topics you learned about
-- What you hope to learn in the future after everything you've learned at BSE
+- Achieved reliable facial recognition at up to 8 meters using the 64MP Arducam Hawkeye camera with digital zoom
+- Built a dynamic zoom system (= / - keys) that automatically adjusts processing detail and frame skip rate based on zoom level — more zoom means the algorithm keeps more pixel detail per face
+- Implemented confidence percentage scoring on every recognized face, color coded green (high), orange (low), red (unknown)
+- Solved the core range problem by exploiting the 64MP sensor: zooming in crops the sensor rather than stretching pixels, so faces at distance still have hundreds of pixels of detail for the algorithm to work with
+- Overhauled model training with image augmentation (flip, brightness, rotation) that multiplies each training photo 6x without taking more pictures, and a CNN fallback for hard-to-detect faces
 -->
 
 ---
@@ -30,10 +28,10 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xFbNuY9iE_g?si=Cp3FTndi-fisdUzk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-- Used Python to train the model on the images stored in the dataset. This allows the feed to display people's names live.
-- I have been surprised by how much data I really need for this model to become accurate. I thought 200 pictures across 4 people were good enough, yet the model still struggles at a range higher than 3 feet.
-- The live feed the first time I ran it was extremely zoomed in and hard to control. I fixed it by lowering the resolution so it would fit in the small monitor I was using. Another problem was the accuracy of the model was subpar to what I expected. To fix this, I added more people to the dataset and decreased the model's tolerance.
-- In order to move on, I want to be able to detect a person from across the classroom (approx. 10 meters).
+- Trained the model on images stored in the dataset using Python — the live feed now displays people's names in real time
+- Surprised by how much data the model actually needs — 200 pictures across 4 people wasn't enough, the model still struggled beyond 3 feet
+- The live feed was extremely zoomed in on first run and hard to control — fixed it by adjusting resolution to fit the monitor, then tackled accuracy by adding more people to the dataset and tightening the model's tolerance
+- Next goal: detect a person from across the classroom, approximately 10 meters
 
 ---
 
@@ -41,10 +39,10 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-- Downloaded Open Computer Vision and set up Python scripts that take pictures after I click the spacebar and store them in whoever's name is at the top, in their own file, so the model can associate names with faces.
-- Surprised at how bad the camera is — it really only looks good when I was right in front of it.
-- Sometimes the images I collected became corrupted and I had to mass-delete many images because I didn't know which ones had gone bad.
-- In order to move on, I want it to be able to detect me and someone else.
+- Set up OpenCV and Python scripts that capture photos on spacebar press and organize them into named folders so the model can associate names with faces
+- The camera quality was worse than expected — only looked sharp when the subject was directly in front of it at close range
+- Some captured images became corrupted silently — had to mass-delete batches because there was no way to tell which ones had gone bad without checking each individually
+- Next goal: detect myself and at least one other person reliably
 
 ---
 
@@ -52,55 +50,452 @@ For your final milestone, explain the outcome of your project. Key details to in
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-My project is the retro arcade project. There is a screen of some sort, and the way it powers on is from the battery that I had to solder to the metal connectors on the back. I also had to solder the charging port on the side. We also soldered the control buttons, such as movement and the reset. Then we built the acrylic case and installed screws, which I had to improvise since I was missing some.
+Built and soldered a retro arcade device — connected a battery to metal contacts on the back, soldered the side charging port and control buttons (movement and reset), then assembled the acrylic case with screws, improvising where hardware was missing.
 
 ---
 
 ## Schematics
 
-Here's where you'll put images of your schematics. [Tinkercad](https://www.tinkercad.com/blog/official-guide-to-tinkercad-circuits) and [Fritzing](https://fritzing.org/learning/) are both great resources to create professional schematic diagrams, though BSE recommends Tinkercad because it can be done easily and for free in the browser.
+This is a software-heavy project, so traditional circuit diagrams are minimal. Here's what's worth documenting visually:
+
+**System Architecture Diagram**
+A block diagram showing how data flows through the system: Camera → Picamera2 → OpenCV frame pipeline → face_recognition (HOG detection → encoding → comparison) → display output. Shows the dual-stream setup (lores for display, main for recognition) and where zoom/ScalerCrop fits in.
+
+**Camera Connection Diagram**
+The Arducam 64MP Hawkeye connects via CSI ribbon cable to the Raspberry Pi 4's camera port. Worth showing the physical connection and the ribbon cable orientation since it's easy to insert backwards.
+
+**Component Layout**
+A simple labeled photo or diagram showing: Raspberry Pi 4, Arducam 64MP Hawkeye on CSI port, monitor via HDMI, keyboard/mouse via USB, power supply. No breadboard or wiring complexity — this project's hardware is all plug-and-play, the complexity lives in the software.
 
 ---
 
 ## Code
 
-Here's where you'll put your code. The syntax below places it into a block of code. Follow the guide [here](https://www.markdownguide.org/extended-syntax/) to learn how to customize it to your project needs.
+### Face Recognition (face_rec-picam.py)
+The main script. Runs continuous facial recognition on the Pi Camera feed with dynamic zoom, autofocus control, and live confidence scoring.
 
-```c++
-void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(9600);
-  Serial.println("Hello World!");
-}
+```python
+import face_recognition
+import cv2
+import numpy as np
+from picamera2 import Picamera2
+from libcamera import controls
+import time
+import pickle
 
-void loop() {
-  // put your main code here, to run repeatedly:
+print("[INFO] loading encodings...")
+with open("encodings.pickle", "rb") as f:
+    data = pickle.loads(f.read())
+known_face_encodings = data["encodings"]
+known_face_names = data["names"]
 
-}
+print(f"[INFO] loaded {len(set(known_face_names))} people, {len(known_face_names)} total encodings")
+
+def get_cv_scaler(zoom_factor):
+    if zoom_factor >= 6.0:
+        return 1
+    elif zoom_factor >= 4.0:
+        return 2
+    elif zoom_factor >= 2.0:
+        return 3
+    else:
+        return 4
+
+def get_frame_skip(zoom_factor):
+    if zoom_factor >= 4.0:
+        return 12
+    elif zoom_factor >= 2.0:
+        return 8
+    else:
+        return 6
+
+def update_zoom(picam2, zoom_factor):
+    size = picam2.camera_properties['PixelArraySize']
+    full_width, full_height = size
+    crop_width = int(full_width / zoom_factor)
+    crop_height = int(full_height / zoom_factor)
+    crop_x = (full_width - crop_width) // 2
+    crop_y = (full_height - crop_height) // 2
+    picam2.set_controls({
+        "ScalerCrop": (crop_x, crop_y, crop_width, crop_height),
+        "AfMode": controls.AfModeEnum.Auto,
+        "AfTrigger": controls.AfTriggerEnum.Start,
+        "AfSpeed": controls.AfSpeedEnum.Fast,
+        "AfRange": controls.AfRangeEnum.Full
+    })
+    time.sleep(0.8)
+    picam2.set_controls({
+        "AfMode": controls.AfModeEnum.Continuous,
+        "AfSpeed": controls.AfSpeedEnum.Fast,
+        "AfRange": controls.AfRangeEnum.Full
+    })
+    return zoom_factor
+
+picam2 = Picamera2()
+config = picam2.create_preview_configuration(
+    main={"size": (1920, 1080), "format": "RGB888"},
+    lores={"size": (640, 480), "format": "YUV420"}
+)
+picam2.configure(config)
+picam2.start()
+
+picam2.set_controls({
+    "AfMode": controls.AfModeEnum.Auto,
+    "AfTrigger": controls.AfTriggerEnum.Start,
+    "AfSpeed": controls.AfSpeedEnum.Fast,
+    "AfRange": controls.AfRangeEnum.Full
+})
+
+time.sleep(3)
+
+picam2.set_controls({
+    "AfMode": controls.AfModeEnum.Continuous,
+    "AfSpeed": controls.AfSpeedEnum.Fast,
+    "AfRange": controls.AfRangeEnum.Full
+})
+
+zoom_factor = 2.0
+update_zoom(picam2, zoom_factor)
+cv_scaler = get_cv_scaler(zoom_factor)
+frame_skip = get_frame_skip(zoom_factor)
+
+time.sleep(1)
+
+face_locations = []
+face_encodings_list = []
+face_names = []
+face_distances_list = []
+frame_count = 0
+start_time = time.time()
+fps = 0
+frame_skip_count = 0
+last_known_display = None
+
+def process_frame(frame):
+    global face_locations, face_encodings_list, face_names, face_distances_list
+    resized_frame = cv2.resize(frame, (0, 0), fx=(1/cv_scaler), fy=(1/cv_scaler))
+    rgb_resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
+    face_locations = face_recognition.face_locations(rgb_resized_frame, model="hog", number_of_times_to_upsample=1)
+    if len(face_locations) == 0 and zoom_factor >= 3.0:
+        face_locations = face_recognition.face_locations(rgb_resized_frame, model="hog", number_of_times_to_upsample=2)
+    face_encodings_list = face_recognition.face_encodings(rgb_resized_frame, face_locations, model="large")
+    face_names = []
+    face_distances_list = []
+    for face_encoding in face_encodings_list:
+        matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.5)
+        name = "Unknown"
+        confidence = 0
+        face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+        best_match_index = np.argmin(face_distances)
+        if matches[best_match_index]:
+            name = known_face_names[best_match_index]
+            confidence = round((1 - face_distances[best_match_index]) * 100, 1)
+        face_names.append(name)
+        face_distances_list.append(confidence)
+
+def draw_results(frame, display_scale):
+    for (top, right, bottom, left), name, confidence in zip(face_locations, face_names, face_distances_list):
+        top = int(top * cv_scaler * display_scale)
+        right = int(right * cv_scaler * display_scale)
+        bottom = int(bottom * cv_scaler * display_scale)
+        left = int(left * cv_scaler * display_scale)
+        if name == "Unknown":
+            color = (0, 0, 255)
+        elif confidence >= 70:
+            color = (0, 255, 0)
+        else:
+            color = (0, 165, 255)
+        cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
+        cv2.rectangle(frame, (left - 3, top - 45), (right + 3, top), color, cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.putText(frame, name, (left + 6, top - 26), font, 0.7, (255, 255, 255), 1)
+        if name != "Unknown":
+            cv2.putText(frame, f"{confidence}%", (left + 6, top - 8), font, 0.5, (255, 255, 255), 1)
+    return frame
+
+def calculate_fps():
+    global frame_count, start_time, fps
+    frame_count += 1
+    elapsed_time = time.time() - start_time
+    if elapsed_time > 1:
+        fps = frame_count / elapsed_time
+        frame_count = 0
+        start_time = time.time()
+    return fps
+
+def draw_hud(frame, current_fps, zoom_factor, cv_scaler, frame_skip):
+    h, w = frame.shape[:2]
+    fps_color = (0, 255, 0) if current_fps >= 5 else (0, 165, 255) if current_fps >= 3 else (0, 0, 255)
+    cv2.putText(frame, f"FPS: {current_fps:.1f}", (w - 150, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, fps_color, 2)
+    cv2.putText(frame, f"Zoom: {zoom_factor}x", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+    cv2.putText(frame, f"Detail: {cv_scaler} | Skip: {frame_skip}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    known_count = sum(1 for n in face_names if n != "Unknown")
+    unknown_count = sum(1 for n in face_names if n == "Unknown")
+    cv2.putText(frame, f"Known: {known_count} Unknown: {unknown_count}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+    cv2.putText(frame, "= zoom in | - zoom out | q quit", (10, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    return frame
+
+print("[INFO] starting face recognition...")
+print("Controls: = zoom in | - zoom out | q quit")
+
+while True:
+    display_raw = picam2.capture_array("lores")
+    display_raw = cv2.cvtColor(display_raw, cv2.COLOR_YUV420p2RGB)
+    display_frame = cv2.resize(display_raw, (1280, 720), interpolation=cv2.INTER_AREA)
+    frame_skip_count += 1
+    if frame_skip_count % frame_skip == 0:
+        main_frame = picam2.capture_array("main")
+        process_frame(main_frame)
+        frame_skip_count = 0
+    display_scale = 1280 / 1920
+    display_frame = draw_results(display_frame, display_scale)
+    current_fps = calculate_fps()
+    display_frame = draw_hud(display_frame, current_fps, zoom_factor, cv_scaler, frame_skip)
+    cv2.imshow("Face Recognition", display_frame)
+    key = cv2.waitKey(1) & 0xFF
+    if key == ord('='):
+        zoom_factor = min(zoom_factor + 0.5, 8.0)
+        update_zoom(picam2, zoom_factor)
+        cv_scaler = get_cv_scaler(zoom_factor)
+        frame_skip = get_frame_skip(zoom_factor)
+        print(f"Zoom: {zoom_factor}x | Detail: {cv_scaler} | Skip: {frame_skip}")
+    elif key == ord('-'):
+        zoom_factor = max(zoom_factor - 0.5, 1.0)
+        update_zoom(picam2, zoom_factor)
+        cv_scaler = get_cv_scaler(zoom_factor)
+        frame_skip = get_frame_skip(zoom_factor)
+        print(f"Zoom: {zoom_factor}x | Detail: {cv_scaler} | Skip: {frame_skip}")
+    elif key == ord('q'):
+        break
+
+cv2.destroyAllWindows()
+picam2.stop()
+```
+
+---
+
+### Model Training (model_training.py)
+Processes every photo in the dataset, augments each image 6x, and builds the encodings.pickle file the recognition script loads.
+
+```python
+import os
+import face_recognition
+import pickle
+import cv2
+import numpy as np
+from datetime import datetime
+
+def list_images(path):
+    extensions = [".jpg", ".jpeg", ".png", ".bmp"]
+    for root, dirs, files in os.walk(path):
+        for file in files:
+            if os.path.splitext(file)[1].lower() in extensions:
+                yield os.path.join(root, file)
+
+def augment_image(image):
+    augmented = [image]
+    augmented.append(cv2.flip(image, 1))
+    bright = cv2.convertScaleAbs(image, alpha=1.2, beta=20)
+    augmented.append(bright)
+    dark = cv2.convertScaleAbs(image, alpha=0.8, beta=-20)
+    augmented.append(dark)
+    h, w = image.shape[:2]
+    M = cv2.getRotationMatrix2D((w/2, h/2), 10, 1.0)
+    rotated_left = cv2.warpAffine(image, M, (w, h))
+    augmented.append(rotated_left)
+    M = cv2.getRotationMatrix2D((w/2, h/2), -10, 1.0)
+    rotated_right = cv2.warpAffine(image, M, (w, h))
+    augmented.append(rotated_right)
+    return augmented
+
+print("=" * 50)
+print("FACE RECOGNITION MODEL TRAINER")
+print("=" * 50)
+print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print()
+
+imagePaths = list(list_images("dataset"))
+
+if len(imagePaths) == 0:
+    print("[ERROR] No images found in dataset folder.")
+    exit()
+
+people = {}
+for imagePath in imagePaths:
+    name = imagePath.split(os.path.sep)[-2]
+    if name not in people:
+        people[name] = 0
+    people[name] += 1
+
+print(f"[INFO] Found {len(people)} people and {len(imagePaths)} total images:")
+for person, count in sorted(people.items()):
+    status = "✓" if count >= 30 else "⚠ low"
+    print(f"  {status} {person}: {count} photos")
+print()
+
+knownEncodings = []
+knownNames = []
+failed = []
+total = len(imagePaths)
+
+for (i, imagePath) in enumerate(imagePaths):
+    name = imagePath.split(os.path.sep)[-2]
+    print(f"[INFO] Processing {i + 1}/{total} — {name} — {os.path.basename(imagePath)}")
+    image = cv2.imread(imagePath)
+    if image is None:
+        print(f"  [SKIP] Could not read image: {imagePath}")
+        failed.append(imagePath)
+        continue
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    boxes = face_recognition.face_locations(rgb, model="hog")
+    if len(boxes) == 0:
+        print(f"  [RETRY] HOG found no face, trying CNN...")
+        boxes = face_recognition.face_locations(rgb, model="cnn")
+    if len(boxes) == 0:
+        print(f"  [SKIP] No face found in {os.path.basename(imagePath)}")
+        failed.append(imagePath)
+        continue
+    if len(boxes) > 1:
+        boxes = [max(boxes, key=lambda b: (b[2]-b[0]) * (b[1]-b[3]))]
+    encodings = face_recognition.face_encodings(rgb, boxes, model="large", num_jitters=3)
+    augmented_images = augment_image(rgb)
+    for aug_image in augmented_images:
+        aug_boxes = face_recognition.face_locations(aug_image, model="hog")
+        if len(aug_boxes) > 0:
+            aug_encodings = face_recognition.face_encodings(aug_image, aug_boxes, model="large", num_jitters=3)
+            for encoding in aug_encodings:
+                knownEncodings.append(encoding)
+                knownNames.append(name)
+    for encoding in encodings:
+        knownEncodings.append(encoding)
+        knownNames.append(name)
+
+print()
+print("=" * 50)
+print("[INFO] Saving encodings...")
+data = {"encodings": knownEncodings, "names": knownNames}
+with open("encodings.pickle", "wb") as f:
+    f.write(pickle.dumps(data))
+
+print()
+print("TRAINING COMPLETE")
+print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+print(f"Total encodings saved: {len(knownEncodings)}")
+print(f"People trained: {len(people)}")
+if failed:
+    print(f"Failed/skipped: {len(failed)}")
+print("=" * 50)
+```
+
+---
+
+### Headshot Capture (headshots_capture-picam.py)
+Takes training photos at 4K resolution with live preview, autofocus triggering before each shot, and a 1-second cooldown to prevent accidental double captures.
+
+```python
+import cv2
+import os
+from datetime import datetime
+from picamera2 import Picamera2
+from libcamera import controls
+import time
+
+PERSON_NAME = "Name"
+CAPTURE_SIZE = (3840, 2160)
+DISPLAY_SIZE = (1280, 720)
+
+def create_folder(name):
+    dataset_folder = "dataset"
+    if not os.path.exists(dataset_folder):
+        os.makedirs(dataset_folder)
+    person_folder = os.path.join(dataset_folder, name)
+    if not os.path.exists(person_folder):
+        os.makedirs(person_folder)
+    return person_folder
+
+def capture_photos(name):
+    folder = create_folder(name)
+    picam2 = Picamera2()
+    config = picam2.create_preview_configuration(
+        main={"size": CAPTURE_SIZE, "format": "RGB888"},
+        lores={"size": (640, 480), "format": "YUV420"}
+    )
+    picam2.configure(config)
+    picam2.start()
+    picam2.set_controls({
+        "AfMode": controls.AfModeEnum.Continuous,
+        "AfSpeed": controls.AfSpeedEnum.Fast
+    })
+    time.sleep(2)
+    photo_count = 0
+    last_photo_time = 0
+    flash_frames = 0
+    print(f"Capturing photos for: {name}\nSPACE = take photo | Q = quit")
+
+    while True:
+        preview = picam2.capture_array("lores")
+        preview = cv2.cvtColor(preview, cv2.COLOR_YUV420p2BGR)
+        preview = cv2.resize(preview, DISPLAY_SIZE, interpolation=cv2.INTER_AREA)
+        h, w = preview.shape[:2]
+        if flash_frames > 0:
+            overlay = preview.copy()
+            cv2.rectangle(overlay, (0, 0), (w, h), (255, 255, 255), -1)
+            cv2.addWeighted(overlay, 0.3, preview, 0.7, 0, preview)
+            flash_frames -= 1
+        cv2.rectangle(preview, (w//3, h//4), (2*w//3, 3*h//4), (0, 255, 0), 2)
+        cv2.putText(preview, "Align face in box", (w//3, h//4 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+        cv2.putText(preview, f"Photos: {photo_count}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cooldown = time.time() - last_photo_time
+        status = "Wait..." if cooldown < 1.0 else "Ready"
+        color = (0, 165, 255) if cooldown < 1.0 else (0, 255, 0)
+        cv2.putText(preview, status, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
+        cv2.putText(preview, "Target: 50 photos", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        cv2.imshow("Headshot Capture", preview)
+        key = cv2.waitKey(1) & 0xFF
+        if key == ord(' '):
+            if time.time() - last_photo_time < 1.0:
+                continue
+            photo_count += 1
+            last_photo_time = time.time()
+            flash_frames = 5
+            picam2.set_controls({"AfMode": controls.AfModeEnum.Auto, "AfTrigger": controls.AfTriggerEnum.Start})
+            time.sleep(0.5)
+            picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filepath = os.path.join(folder, f"{name}_{timestamp}.jpg")
+            full_frame = picam2.capture_array("main")
+            cv2.imwrite(filepath, full_frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
+            print(f"Saved {photo_count}/50: {filepath}")
+            if photo_count % 10 == 0:
+                print(f"{photo_count} photos — try a different angle now")
+        elif key == ord('q'):
+            break
+
+    cv2.destroyAllWindows()
+    picam2.stop()
+    print(f"Done. {photo_count} photos saved.")
+    if photo_count < 30:
+        print(f"Warning: only {photo_count} photos — aim for 50 for best accuracy")
+
+if __name__ == "__main__":
+    capture_photos(PERSON_NAME)
 ```
 
 ---
 
 ## Bill of Materials
 
-Here's where you'll list the parts in your project. To add more rows, just copy and paste the example rows below.
-Don't forget to place the link of where to buy each component inside the quotation marks in the corresponding row after `href=`. Follow the guide [here](https://www.markdownguide.org/extended-syntax/) to learn how to customize this to your project needs.
-
 | **Part** | **Note** | **Price** | **Link** |
 |:--:|:--:|:--:|:--:|
-| 10.1" Security Monitor | Used to display raspberry pi on to screen | $78 | <a href="https://www.amazon.com/Haiway-Security-Surveillance-Controller-Resolution/dp/B07WKG9J35?th=1">Link</a> |
-| Raspberry Pi Starter Kit | Includes necessary components such as the raspberry pi, micro SD card with Raspberry OS, power supply, and case to hold the Pi | $150 | <a href="https://www.amazon.com/CanaKit-Raspberry-4GB-Starter-Kit/dp/B07V5JTMV9/ref=sr_1_1?dib=eyJ2IjoiMSJ9.4tX4qJd4-AxDDD69js_G-klIDZ_9KAfVg_zuk3y_OXMYIy2624zr8ofr_O6RNfaXyIeh-VUizY3kxGSUcMT8NgbafM_JrlJFfHo9OB4eAVE812W94Jh_RVxkFR2mGtyS0Kq1Wm3JLtfQisU8xWPqH0jDKX1A4X7ixHgTtXGqtZmcTSyp3PojN0l-i2zo0osHG2l7xi5wbJ-c10xT_FpXw70iYD6DARRYdCWdUNsA0Qw.pOQ4Vh38_1tedL4XXuN18IxgC72no0BhC0Bw9bZmcpI&dib_tag=se&keywords=raspberry%2Bpi%2Bstarter%2Bkit&qid=1782329275&sr=8-1&th=1">Link</a> |
-| Raspberry Pi Camera | Used to take the photos and detect faces | $50 | <a href="https://www.amazon.com/Raspberry-Pi-Camera-Module/dp/B0BRY6MVXL/ref=sr_1_1_mod_primary_new?crid=16XMM643GLZ80&dib=eyJ2IjoiMSJ9.6WrYADCMjOY9gW5mqaDlpKL5UUOrsJ5iu3sNf2dgqPtrSbPVPaqanggClUNg6fMqUZW2Kqy7MxAtrAXv9Oe3OkGzbedyOkyc_K1YT9oLAbV5mfkMNl4L-QTwptbiEB8N1u7Wog2sQgl43x0tXJ9E5z0VBC-RRQeSBBWrWEj6P5tFxen0T0c0d9boJpj6-kB9FlK4ki4Py0nQ-R_wwNQn_qzxid5wNC9FYm3sO10ijnc.TR91zc93GVHjv-oKznWDZx1v3GUbsJP28EIFZugUOJk&dib_tag=se&keywords=raspberry%2Bpi%2B4%2Bplus%2Bcamera%2Bmodule&qid=1782329418&sbo=RZvfv%2F%2FHxDF%2BO5021pAnSA%3D%3D&sprefix=Raspberry%2BPi%2BCamera%2BModule%2Bfor%2Bpi%2B4%2Caps%2C504&sr=8-1&th=1">Link</a> |
-| Keyboard and Mouse | Control the Raspberry Pi | $15 | <a href="https://www.amazon.com/Logitech-Keyboard-Windows-Optical-Full-Size/dp/B003NREDC8/ref=sr_1_3?crid=24J0NUL8LPAFQ&dib=eyJ2IjoiMSJ9.Y-nH--Ry5RWB99O7EtO5uBhuM-vynJwbsvF0tTrC6da1iPKmxkxWURJPPMaa9zBJcGlwCSZJnJorFUq_Sc4koMwH3GGO8nJpBbQ-eVfgvDRaM2-CRCVIhpW6Q0NLJo-g7xIM4R1GwdbZ3T7AIBOOH1UV1GqL12WXMFYvy6NUpMxJT7RZmz6ycMnlZGZt1i7WE529mSQrNr9kcUk0BXsP5Unb_3sinsskOOp0mCCohz8.0Hhw5x3S1jbTdfdnG1Phscxw5iI2f5S8m0pBw8uU_iE&dib_tag=se&keywords=Keyboard+and+Mouse+wired&qid=1782329452&sprefix=keyboard+and+mouse+w%2Caps%2C546&sr=8-3">Link</a> |
+| 10.1" Security Monitor | Displays the live recognition feed | $78 | <a href="https://www.amazon.com/Haiway-Security-Surveillance-Controller-Resolution/dp/B07WKG9J35?th=1">Link</a> |
+| Raspberry Pi 4 Starter Kit | Pi 4, micro SD, power supply, and case | $150 | <a href="https://www.amazon.com/CanaKit-Raspberry-4GB-Starter-Kit/dp/B07V5JTMV9">Link</a> |
+| Arducam 64MP Hawkeye | 64MP autofocus camera for long-range detection | $50 | <a href="https://www.amazon.com/Raspberry-Pi-Camera-Module/dp/B0BRY6MVXL">Link</a> |
+| Keyboard and Mouse | Controls the Pi | $15 | <a href="https://www.amazon.com/Logitech-Keyboard-Windows-Optical-Full-Size/dp/B003NREDC8">Link</a> |
 
 ---
 
 ## Other Resources/Examples
 
-One of the best parts about GitHub is that you can view how other people set up their own work. Here are some past BSE portfolios that are awesome examples. You can view how they set up their portfolio, and you can view their `index.md` files to understand how they implemented different portfolio components.
-
 - [Example 1](https://trashytuber.github.io/YimingJiaBlueStamp/)
 - [Example 2](https://sviatil0.github.io/Sviatoslav_BSE/)
 - [Example 3](https://arneshkumar.github.io/arneshbluestamp/)
-
-To watch the BSE tutorial on how to create a portfolio, click here.
