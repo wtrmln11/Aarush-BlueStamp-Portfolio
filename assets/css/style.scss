@@ -1,0 +1,18 @@
+---
+---
+@import "{{ site.theme }}";
+
+/* Your overrides below */
+body {
+  background: #0a0a0f;
+  color: #e2e8f0;
+}
+
+header {
+  border-bottom: 1px solid #1e1e2e;
+}
+
+section {
+  max-width: 1100px;
+  margin: 0 auto;
+}
