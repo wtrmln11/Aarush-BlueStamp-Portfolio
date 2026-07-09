@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page.title | default: site.title }}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ '/assets/style.css' | relative_url }}">
+</head>
+<body>
+  <div class="site-wrap">
+    <nav class="site-nav">
+      <a class="nav-logo" href="{{ '/' | relative_url }}">AARUSH H</a>
+      <ul class="nav-links">
+        <li><a href="#overview">Overview</a></li>
+        <li><a href="#milestones">Milestones</a></li>
+        <li><a href="#code">Code</a></li>
+        <li><a href="#bom">Parts</a></li>
+      </ul>
+    </nav>
+
+    <div class="container">
+      <section class="hero" id="overview">
+        <div class="hero-eyebrow">SYSTEM ACTIVE</div>
+        <h1>{{ page.title | default: site.title }}</h1>
+        <p class="hero-sub">{{ page.description | default: 'A custom project page for your Raspberry Pi facial recognition system.' }}</p>
+        <div class="hero-meta">
+          <span class="meta-chip active">Aarush H</span>
+          <span class="meta-chip">Evergreen Valley High School</span>
+          <span class="meta-chip">Computer Engineering</span>
+          <span class="meta-chip">Incoming Senior</span>
+        </div>
+      </section>
+    </div>
+
+    <main>
+      {{ content }}
+    </main>
+
+    <footer class="site-footer">Built by <span>Aarush H</span> with GitHub Pages</footer>
+  </div>
+</body>
+</html>
