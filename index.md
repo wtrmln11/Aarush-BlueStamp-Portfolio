@@ -29,10 +29,10 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xFbNuY9iE_g?si=Cp3FTndi-fisdUzk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-- Trained the model on images stored in the dataset using Python — the live feed now displays people's names in real time
-- Surprised by how much data the model actually needs — 200 pictures across 4 people wasn't enough, the model still struggled beyond 3 feet
-- The live feed was extremely zoomed in on first run and hard to control — fixed it by adjusting resolution to fit the monitor, then tackled accuracy by adding more people to the dataset and tightening the model's tolerance
-- Next goal: detect a person from across the classroom, approximately 10 meters
+-Trained the model on images in the dataset using Python, allowing the live feed to show people’s names
+-Surprised by how much data the model needs, only 200 pictures of 4 people in the dataset wasn’t enough to allow the model to recognize people past 3 feet
+-Initially the live feed was extremely zoomed in, so I adjusted the resolution to fit the monitor and then added more people to the dataset to improve the accuracy of the model
+-The next goal is to detect a person from across the classroom, around 10 meters
 
 ---
 
