@@ -1,28 +1,1327 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="{{ page.description | default: site.description }}">
-  <title>{{ page.title | default: site.title }}</title>
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Aarush H — Facial Recognition System</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg:        #0a0a0f;
+      --surface:   #12121a;
+      --border:    #1e1e2e;
+      --accent:    #00ff88;
+      --accent2:   #7c3aed;
+      --accent3:   #f59e0b;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --scan:      rgba(0,255,136,0.03);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Scanline effect across the whole page */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        var(--scan) 2px,
+        var(--scan) 4px
+      );
+      pointer-events: none;
+      z-index: 9999;
+    }
+
+    /* ─── NAV ─── */
+    nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 2rem;
+      background: rgba(10,10,15,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .nav-logo {
+      font-family: 'Space Mono', monospace;
+      color: var(--accent);
+      font-size: 0.85rem;
+      letter-spacing: 0.1em;
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      list-style: none;
+    }
+
+    .nav-links a {
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 0.85rem;
+      letter-spacing: 0.05em;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover { color: var(--accent); }
+
+    /* ─── HERO ─── */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 6rem 2rem 4rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      position: relative;
+    }
+
+    .hero-eyebrow {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 1.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .hero-eyebrow::before {
+      content: '';
+      display: inline-block;
+      width: 2rem;
+      height: 1px;
+      background: var(--accent);
+    }
+
+    .hero h1 {
+      font-size: clamp(2.5rem, 7vw, 5.5rem);
+      font-weight: 700;
+      line-height: 1.05;
+      letter-spacing: -0.02em;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero h1 .highlight {
+      color: var(--accent);
+      position: relative;
+      display: inline-block;
+    }
+
+    /* Glitch effect on highlight text */
+    .hero h1 .highlight::after {
+      content: attr(data-text);
+      position: absolute;
+      left: 2px;
+      top: 0;
+      color: var(--accent2);
+      clip-path: polygon(0 30%, 100% 30%, 100% 50%, 0 50%);
+      opacity: 0;
+      animation: glitch 4s infinite;
+    }
+
+    @keyframes glitch {
+      0%, 90%, 100% { opacity: 0; transform: translateX(0); }
+      92% { opacity: 0.7; transform: translateX(-4px); }
+      94% { opacity: 0.5; transform: translateX(4px); }
+      96% { opacity: 0; }
+    }
+
+    .hero-sub {
+      font-size: 1.15rem;
+      color: var(--muted);
+      max-width: 560px;
+      margin-bottom: 3rem;
+      line-height: 1.7;
+    }
+
+    .hero-meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .meta-chip {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.75rem;
+      padding: 0.4rem 0.9rem;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    .meta-chip.active {
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Live indicator */
+    .live-dot {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 0.1em;
+    }
+
+    .live-dot::before {
+      content: '';
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--accent);
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.7); }
+    }
+
+    /* Hero camera grid visual */
+    .hero-visual {
+      position: absolute;
+      right: -2rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 340px;
+      height: 260px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      overflow: hidden;
+      display: none;
+    }
+
+    @media (min-width: 900px) { .hero-visual { display: block; } }
+
+    .cam-frame {
+      width: 100%;
+      height: 100%;
+      background: var(--surface);
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cam-face-box {
+      width: 100px;
+      height: 120px;
+      border: 2px solid var(--accent);
+      border-radius: 2px;
+      position: relative;
+      animation: faceDetect 3s ease-in-out infinite;
+    }
+
+    @keyframes faceDetect {
+      0%, 100% { border-color: var(--accent); box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+      50% { border-color: var(--accent); box-shadow: 0 0 20px 4px rgba(0,255,136,0.2); }
+    }
+
+    .cam-label {
+      position: absolute;
+      bottom: -22px;
+      left: 0;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.6rem;
+      color: var(--accent);
+      white-space: nowrap;
+    }
+
+    .cam-corner {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      border-color: var(--accent);
+      border-style: solid;
+    }
+
+    .cam-corner.tl { top: -2px; left: -2px; border-width: 2px 0 0 2px; }
+    .cam-corner.tr { top: -2px; right: -2px; border-width: 2px 2px 0 0; }
+    .cam-corner.bl { bottom: -2px; left: -2px; border-width: 0 0 2px 2px; }
+    .cam-corner.br { bottom: -2px; right: -2px; border-width: 0 2px 2px 0; }
+
+    .cam-hud {
+      position: absolute;
+      top: 8px; left: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.55rem;
+      color: var(--accent);
+      line-height: 1.6;
+    }
+
+    .cam-fps {
+      position: absolute;
+      top: 8px; right: 8px;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.55rem;
+      color: var(--accent);
+    }
+
+    .scan-line {
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent), transparent);
+      opacity: 0.6;
+      animation: scanDown 2.5s linear infinite;
+    }
+
+    @keyframes scanDown {
+      0% { top: 0; }
+      100% { top: 100%; }
+    }
+
+    /* ─── SECTIONS ─── */
+    section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 5rem 2rem;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-label {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--accent);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 2rem;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .section-label::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+      max-width: 120px;
+    }
+
+    h2 {
+      font-size: clamp(1.8rem, 4vw, 2.8rem);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 1rem;
+    }
+
+    /* ─── MILESTONE CARDS ─── */
+    .milestone-grid {
+      display: grid;
+      gap: 1.5rem;
+      margin-top: 2.5rem;
+    }
+
+    .milestone-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      position: relative;
+      overflow: hidden;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+
+    .milestone-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-2px);
+    }
+
+    .milestone-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent2), var(--accent));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .milestone-card:hover::before { opacity: 1; }
+
+    .milestone-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--accent2);
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 0.75rem;
+    }
+
+    .milestone-card h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
+
+    .video-wrapper {
+      position: relative;
+      padding-bottom: 56.25%;
+      height: 0;
+      overflow: hidden;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      border: 1px solid var(--border);
+    }
+
+    .video-wrapper iframe {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      border: 0;
+    }
+
+    .milestone-bullets {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    .milestone-bullets li {
+      display: flex;
+      gap: 0.75rem;
+      font-size: 0.95rem;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .milestone-bullets li::before {
+      content: '→';
+      color: var(--accent);
+      flex-shrink: 0;
+      margin-top: 0.05em;
+    }
+
+    .goal-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin-top: 1.2rem;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      padding: 0.4rem 0.8rem;
+      border: 1px solid var(--accent3);
+      border-radius: 999px;
+      color: var(--accent3);
+      letter-spacing: 0.05em;
+    }
+
+    .goal-chip::before { content: '▶'; font-size: 0.5rem; }
+
+    /* ─── SCHEMATICS ─── */
+    .schematics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin-top: 2.5rem;
+    }
+
+    .schematic-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.75rem;
+      transition: border-color 0.3s;
+    }
+
+    .schematic-card:hover { border-color: var(--accent2); }
+
+    .schematic-icon {
+      font-size: 2rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .schematic-card h4 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+    }
+
+    .schematic-card p {
+      font-size: 0.875rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* ─── CODE BLOCKS ─── */
+    .code-section {
+      margin-top: 2.5rem;
+    }
+
+    .code-tabs {
+      display: flex;
+      gap: 0.5rem;
+      margin-bottom: 0;
+      flex-wrap: wrap;
+    }
+
+    .tab-btn {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      padding: 0.5rem 1rem;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-bottom: none;
+      border-radius: 6px 6px 0 0;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all 0.2s;
+      letter-spacing: 0.05em;
+    }
+
+    .tab-btn.active {
+      background: #0d1117;
+      color: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .code-panel {
+      display: none;
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 0 8px 8px 8px;
+      overflow: hidden;
+    }
+
+    .code-panel.active { display: block; }
+
+    .code-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 1.25rem;
+      background: #161b22;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .code-filename {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent);
+    }
+
+    .code-lang {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.65rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .code-body {
+      padding: 1.5rem;
+      overflow-x: auto;
+      max-height: 500px;
+      overflow-y: auto;
+    }
+
+    .code-body::-webkit-scrollbar { width: 6px; height: 6px; }
+    .code-body::-webkit-scrollbar-track { background: transparent; }
+    .code-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    pre {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      color: #c9d1d9;
+      white-space: pre;
+    }
+
+    /* Syntax colors */
+    .kw  { color: #ff7b72; }   /* keywords */
+    .fn  { color: #d2a8ff; }   /* functions */
+    .st  { color: #a5d6ff; }   /* strings */
+    .cm  { color: #8b949e; font-style: italic; }  /* comments */
+    .nm  { color: #79c0ff; }   /* numbers/constants */
+    .var { color: #ffa657; }   /* variables */
+
+    /* ─── BOM TABLE ─── */
+    .bom-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 2rem;
+      font-size: 0.9rem;
+    }
+
+    .bom-table th {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      padding: 0.75rem 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .bom-table td {
+      padding: 0.9rem 1rem;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      vertical-align: top;
+    }
+
+    .bom-table td:first-child { color: var(--text); font-weight: 500; }
+
+    .bom-table tr:hover td { background: var(--surface); }
+
+    .bom-table a {
+      color: var(--accent);
+      text-decoration: none;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+    }
+
+    .bom-table a:hover { text-decoration: underline; }
+
+    .price-tag {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.8rem;
+      color: var(--accent3);
+    }
+
+    /* ─── FOOTER ─── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 2rem;
+      text-align: center;
+      font-family: 'Space Mono', monospace;
+      font-size: 0.7rem;
+      color: var(--muted);
+      letter-spacing: 0.05em;
+    }
+
+    footer span { color: var(--accent); }
+
+    /* ─── PROFILE BLOCK ─── */
+    .profile-block {
+      display: flex;
+      gap: 2rem;
+      align-items: flex-start;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2rem;
+      margin-top: 2.5rem;
+      flex-wrap: wrap;
+    }
+
+    .profile-img {
+      width: 110px;
+      height: 110px;
+      border-radius: 8px;
+      object-fit: cover;
+      border: 2px solid var(--accent);
+      flex-shrink: 0;
+      background: var(--border);
+    }
+
+    .profile-info h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      margin-bottom: 0.4rem;
+    }
+
+    .profile-info .profile-sub {
+      font-family: 'Space Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--accent);
+      margin-bottom: 0.75rem;
+      letter-spacing: 0.05em;
+    }
+
+    .profile-info p {
+      font-size: 0.9rem;
+      color: var(--muted);
+      max-width: 500px;
+      line-height: 1.6;
+    }
+
+    /* ─── SCROLLBAR ─── */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
 </head>
 <body>
-  <header class="page-header">
-    <div class="page-header-inner">
-      <h1 class="project-name">{{ page.title | default: site.title }}</h1>
-      <h2 class="project-tagline">{{ page.description | default: site.description }}</h2>
-      <nav class="top-nav">
-        <a href="#overview">Overview</a>
-        <a href="#milestones">Milestones</a>
-        <a href="#code">Code</a>
-        <a href="#bom">Parts</a>
-      </nav>
-    </div>
-  </header>
 
-  <main id="content" class="main-content">
-    {{ content }}
-  </main>
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">AARUSH H // BSE 2025</div>
+  <ul class="nav-links">
+    <li><a href="#milestones">Milestones</a></li>
+    <li><a href="#schematics">Schematics</a></li>
+    <li><a href="#code">Code</a></li>
+    <li><a href="#bom">Parts</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-eyebrow">
+    <span class="live-dot">SYSTEM ACTIVE</span>
+  </div>
+  <h1>
+    Real-Time<br>
+    <span class="highlight" data-text="Facial Recognition">Facial Recognition</span><br>
+    on a Raspberry Pi
+  </h1>
+  <p class="hero-sub">
+    A machine learning system that identifies people from across a room —
+    built from scratch using OpenCV, dlib, and a 64MP camera on a Pi 4.
+  </p>
+  <div class="hero-meta">
+    <span class="meta-chip active">Aarush H</span>
+    <span class="meta-chip">Evergreen Valley High School</span>
+    <span class="meta-chip">Computer Engineering</span>
+    <span class="meta-chip">Incoming Senior</span>
+  </div>
+
+  <!-- Animated camera preview -->
+  <div class="hero-visual">
+    <div class="cam-frame">
+      <div class="scan-line"></div>
+      <div class="cam-hud">
+        ZOOM: 2.5x<br>
+        DETAIL: 3<br>
+        KNOWN: 1
+      </div>
+      <div class="cam-fps">FPS: 7.4</div>
+      <div class="cam-face-box">
+        <div class="cam-corner tl"></div>
+        <div class="cam-corner tr"></div>
+        <div class="cam-corner bl"></div>
+        <div class="cam-corner br"></div>
+        <div class="cam-label">AARUSH H — 91.3%</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MILESTONES -->
+<section id="milestones">
+  <div class="section-label">Project Log</div>
+  <h2>Milestones</h2>
+
+  <div class="milestone-grid">
+
+    <!-- SECOND MILESTONE -->
+    <div class="milestone-card">
+      <div class="milestone-tag">Milestone 02</div>
+      <h3>Training the Model & Going Live</h3>
+      <div class="video-wrapper">
+        <iframe src="https://www.youtube.com/embed/xFbNuY9iE_g?si=Cp3FTndi-fisdUzk"
+          title="Second Milestone" allowfullscreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
+        </iframe>
+      </div>
+      <ul class="milestone-bullets">
+        <li>Trained the model on a custom image dataset using Python — the live feed now displays people's names in real time</li>
+        <li>Discovered how much data a model actually needs — 200 photos across 4 people still wasn't enough for reliable recognition beyond 3 feet</li>
+        <li>Fixed an out-of-control zoomed feed by lowering the capture resolution to fit the monitor, and improved accuracy by adding more dataset entries and tightening the tolerance threshold</li>
+      </ul>
+      <div class="goal-chip">Next goal: detect a person from 10 meters away</div>
+    </div>
+
+    <!-- FIRST MILESTONE -->
+    <div class="milestone-card">
+      <div class="milestone-tag">Milestone 01</div>
+      <h3>Camera, Dataset & First Detection</h3>
+      <div class="video-wrapper">
+        <iframe src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5"
+          title="First Milestone" allowfullscreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
+        </iframe>
+      </div>
+      <ul class="milestone-bullets">
+        <li>Set up OpenCV and wrote Python scripts that capture and store headshots by person name with a spacebar trigger — building the dataset the model would learn from</li>
+        <li>The Pi Camera's quality was a real limitation — usable images required being directly in front of it with good lighting</li>
+        <li>Some captured images became corrupted silently, requiring a mass-delete since there was no easy way to identify which ones had gone bad</li>
+      </ul>
+      <div class="goal-chip">Next goal: detect me and at least one other person</div>
+    </div>
+
+    <!-- STARTER MILESTONE -->
+    <div class="milestone-card">
+      <div class="milestone-tag">Starter Milestone</div>
+      <h3>Hardware Assembly & First Boot</h3>
+      <div class="video-wrapper">
+        <iframe src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5"
+          title="Starter Milestone" allowfullscreen
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share">
+        </iframe>
+      </div>
+      <ul class="milestone-bullets">
+        <li>Assembled the retro arcade project — soldered the battery, charging port, and control buttons, then built and screwed together the acrylic case</li>
+        <li>Had to improvise on the screw installation due to missing hardware</li>
+      </ul>
+    </div>
+
+  </div>
+</section>
+
+<!-- SCHEMATICS -->
+<section id="schematics">
+  <div class="section-label">Hardware</div>
+  <h2>System Diagram</h2>
+  <p style="color: var(--muted); max-width: 600px; margin-bottom: 0.5rem; font-size: 0.95rem;">
+    This project is almost entirely software — but the physical wiring still matters.
+    Here's what connects to what and why.
+  </p>
+
+  <div class="schematics-grid">
+    <div class="schematic-card">
+      <div class="schematic-icon">📷</div>
+      <h4>Arducam 64MP Hawkeye → Pi 4</h4>
+      <p>Connected via CSI ribbon cable to the camera port on the Pi. Outputs a raw sensor stream that libcamera reads and passes to OpenCV for processing. The 64MP sensor lets the system crop and zoom digitally without losing enough resolution to detect faces.</p>
+    </div>
+    <div class="schematic-card">
+      <div class="schematic-icon">🧠</div>
+      <h4>Pi 4 (Processing)</h4>
+      <p>Runs the entire recognition pipeline — capturing frames, resizing, converting colorspaces, running HOG face detection, computing 128-dimension face embeddings via dlib, and comparing them against the trained encodings file. All on a single ARM CPU.</p>
+    </div>
+    <div class="schematic-card">
+      <div class="schematic-icon">🖥️</div>
+      <h4>Pi 4 → Security Monitor</h4>
+      <p>HDMI out from the Pi to a 10.1" security monitor. Displays the live OpenCV window with bounding boxes, names, confidence percentages, zoom level, and FPS counter overlaid on the camera feed.</p>
+    </div>
+    <div class="schematic-card">
+      <div class="schematic-icon">⚡</div>
+      <h4>Power</h4>
+      <p>Pi powered via USB-C power supply from the starter kit. Monitor powered separately. No custom power circuitry — the complexity here is all in software.</p>
+    </div>
+    <div class="schematic-card">
+      <div class="schematic-icon">💾</div>
+      <h4>Data Flow</h4>
+      <p>Camera frame → resize via cv_scaler → HOG detection → dlib face encoding → compare against encodings.pickle → draw result on lores display stream. The main high-res stream is only pulled every Nth frame to keep FPS stable.</p>
+    </div>
+    <div class="schematic-card">
+      <div class="schematic-icon">🔌</div>
+      <h4>Peripherals</h4>
+      <p>Wired keyboard and mouse connected via USB for controlling the Pi desktop, editing scripts in Geany, and pressing = / − to adjust zoom during live recognition.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CODE -->
+<section id="code">
+  <div class="section-label">Source</div>
+  <h2>The Code</h2>
+  <p style="color: var(--muted); max-width: 600px; margin-bottom: 0; font-size: 0.95rem;">
+    Three scripts run the whole system. Click a tab to read each one.
+  </p>
+
+  <div class="code-section">
+    <div class="code-tabs">
+      <button class="tab-btn active" onclick="showTab('rec')">face_rec_picam.py</button>
+      <button class="tab-btn" onclick="showTab('train')">model_training.py</button>
+      <button class="tab-btn" onclick="showTab('shots')">headshots_capture.py</button>
+    </div>
+
+    <!-- face_rec_picam.py -->
+    <div class="code-panel active" id="tab-rec">
+      <div class="code-header">
+        <span class="code-filename">face_rec_picam.py</span>
+        <span class="code-lang">Python</span>
+      </div>
+      <div class="code-body"><pre>
+<span class="kw">import</span> face_recognition
+<span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> picamera2 <span class="kw">import</span> Picamera2
+<span class="kw">from</span> libcamera <span class="kw">import</span> controls
+<span class="kw">import</span> time
+<span class="kw">import</span> pickle
+
+<span class="fn">print</span>(<span class="st">"[INFO] loading encodings..."</span>)
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"encodings.pickle"</span>, <span class="st">"rb"</span>) <span class="kw">as</span> f:
+    data = pickle.<span class="fn">loads</span>(f.<span class="fn">read</span>())
+known_face_encodings = data[<span class="st">"encodings"</span>]
+known_face_names = data[<span class="st">"names"</span>]
+
+<span class="fn">print</span>(f<span class="st">"[INFO] loaded {len(set(known_face_names))} people, {len(known_face_names)} total encodings"</span>)
+
+<span class="kw">def</span> <span class="fn">get_cv_scaler</span>(zoom_factor):
+    <span class="cm"># More zoom = more detail needed = lower scaler</span>
+    <span class="kw">if</span> zoom_factor >= <span class="nm">6.0</span>:
+        <span class="kw">return</span> <span class="nm">1</span>
+    <span class="kw">elif</span> zoom_factor >= <span class="nm">4.0</span>:
+        <span class="kw">return</span> <span class="nm">2</span>
+    <span class="kw">elif</span> zoom_factor >= <span class="nm">2.0</span>:
+        <span class="kw">return</span> <span class="nm">3</span>
+    <span class="kw">else</span>:
+        <span class="kw">return</span> <span class="nm">4</span>
+
+<span class="kw">def</span> <span class="fn">get_frame_skip</span>(zoom_factor):
+    <span class="kw">if</span> zoom_factor >= <span class="nm">4.0</span>:
+        <span class="kw">return</span> <span class="nm">12</span>
+    <span class="kw">elif</span> zoom_factor >= <span class="nm">2.0</span>:
+        <span class="kw">return</span> <span class="nm">8</span>
+    <span class="kw">else</span>:
+        <span class="kw">return</span> <span class="nm">6</span>
+
+<span class="kw">def</span> <span class="fn">update_zoom</span>(picam2, zoom_factor):
+    size = picam2.camera_properties[<span class="st">'PixelArraySize'</span>]
+    full_width, full_height = size
+    crop_width = <span class="fn">int</span>(full_width / zoom_factor)
+    crop_height = <span class="fn">int</span>(full_height / zoom_factor)
+    crop_x = (full_width - crop_width) // <span class="nm">2</span>
+    crop_y = (full_height - crop_height) // <span class="nm">2</span>
+    picam2.<span class="fn">set_controls</span>({
+        <span class="st">"ScalerCrop"</span>: (crop_x, crop_y, crop_width, crop_height),
+        <span class="st">"AfMode"</span>: controls.AfModeEnum.Auto,
+        <span class="st">"AfTrigger"</span>: controls.AfTriggerEnum.Start,
+        <span class="st">"AfSpeed"</span>: controls.AfSpeedEnum.Fast,
+        <span class="st">"AfRange"</span>: controls.AfRangeEnum.Full
+    })
+    time.<span class="fn">sleep</span>(<span class="nm">0.8</span>)
+    picam2.<span class="fn">set_controls</span>({
+        <span class="st">"AfMode"</span>: controls.AfModeEnum.Continuous,
+        <span class="st">"AfSpeed"</span>: controls.AfSpeedEnum.Fast,
+        <span class="st">"AfRange"</span>: controls.AfRangeEnum.Full
+    })
+    <span class="kw">return</span> zoom_factor
+
+<span class="cm"># Initialize camera</span>
+picam2 = <span class="fn">Picamera2</span>()
+config = picam2.<span class="fn">create_preview_configuration</span>(
+    main={<span class="st">"size"</span>: (<span class="nm">1920</span>, <span class="nm">1080</span>), <span class="st">"format"</span>: <span class="st">"RGB888"</span>},
+    lores={<span class="st">"size"</span>: (<span class="nm">640</span>, <span class="nm">480</span>), <span class="st">"format"</span>: <span class="st">"YUV420"</span>}
+)
+picam2.<span class="fn">configure</span>(config)
+picam2.<span class="fn">start</span>()
+
+<span class="cm"># Full autofocus on startup — lock at distance</span>
+picam2.<span class="fn">set_controls</span>({
+    <span class="st">"AfMode"</span>: controls.AfModeEnum.Auto,
+    <span class="st">"AfTrigger"</span>: controls.AfTriggerEnum.Start,
+    <span class="st">"AfSpeed"</span>: controls.AfSpeedEnum.Fast,
+    <span class="st">"AfRange"</span>: controls.AfRangeEnum.Full
+})
+time.<span class="fn">sleep</span>(<span class="nm">3</span>)
+picam2.<span class="fn">set_controls</span>({
+    <span class="st">"AfMode"</span>: controls.AfModeEnum.Continuous,
+    <span class="st">"AfSpeed"</span>: controls.AfSpeedEnum.Fast,
+    <span class="st">"AfRange"</span>: controls.AfRangeEnum.Full
+})
+
+zoom_factor = <span class="nm">2.0</span>
+<span class="fn">update_zoom</span>(picam2, zoom_factor)
+cv_scaler = <span class="fn">get_cv_scaler</span>(zoom_factor)
+frame_skip = <span class="fn">get_frame_skip</span>(zoom_factor)
+time.<span class="fn">sleep</span>(<span class="nm">1</span>)
+
+face_locations = []
+face_encodings_list = []
+face_names = []
+face_distances_list = []
+frame_count = <span class="nm">0</span>
+start_time = time.<span class="fn">time</span>()
+fps = <span class="nm">0</span>
+frame_skip_count = <span class="nm">0</span>
+
+<span class="kw">def</span> <span class="fn">process_frame</span>(frame):
+    <span class="kw">global</span> face_locations, face_encodings_list, face_names, face_distances_list
+    resized_frame = cv2.<span class="fn">resize</span>(frame, (<span class="nm">0</span>, <span class="nm">0</span>), fx=(<span class="nm">1</span>/cv_scaler), fy=(<span class="nm">1</span>/cv_scaler))
+    rgb_resized_frame = cv2.<span class="fn">cvtColor</span>(resized_frame, cv2.COLOR_BGR2RGB)
+    face_locations = face_recognition.<span class="fn">face_locations</span>(
+        rgb_resized_frame, model=<span class="st">"hog"</span>, number_of_times_to_upsample=<span class="nm">1</span>)
+    <span class="kw">if</span> <span class="fn">len</span>(face_locations) == <span class="nm">0</span> <span class="kw">and</span> zoom_factor >= <span class="nm">3.0</span>:
+        face_locations = face_recognition.<span class="fn">face_locations</span>(
+            rgb_resized_frame, model=<span class="st">"hog"</span>, number_of_times_to_upsample=<span class="nm">2</span>)
+    face_encodings_list = face_recognition.<span class="fn">face_encodings</span>(
+        rgb_resized_frame, face_locations, model=<span class="st">"large"</span>)
+    face_names = []
+    face_distances_list = []
+    <span class="kw">for</span> face_encoding <span class="kw">in</span> face_encodings_list:
+        matches = face_recognition.<span class="fn">compare_faces</span>(
+            known_face_encodings, face_encoding, tolerance=<span class="nm">0.5</span>)
+        name = <span class="st">"Unknown"</span>
+        confidence = <span class="nm">0</span>
+        face_distances = face_recognition.<span class="fn">face_distance</span>(known_face_encodings, face_encoding)
+        best_match_index = np.<span class="fn">argmin</span>(face_distances)
+        <span class="kw">if</span> matches[best_match_index]:
+            name = known_face_names[best_match_index]
+            confidence = <span class="fn">round</span>((<span class="nm">1</span> - face_distances[best_match_index]) * <span class="nm">100</span>, <span class="nm">1</span>)
+        face_names.<span class="fn">append</span>(name)
+        face_distances_list.<span class="fn">append</span>(confidence)
+
+<span class="kw">def</span> <span class="fn">draw_results</span>(frame, display_scale):
+    <span class="kw">for</span> (top, right, bottom, left), name, confidence <span class="kw">in</span> <span class="fn">zip</span>(face_locations, face_names, face_distances_list):
+        top = <span class="fn">int</span>(top * cv_scaler * display_scale)
+        right = <span class="fn">int</span>(right * cv_scaler * display_scale)
+        bottom = <span class="fn">int</span>(bottom * cv_scaler * display_scale)
+        left = <span class="fn">int</span>(left * cv_scaler * display_scale)
+        <span class="kw">if</span> name == <span class="st">"Unknown"</span>:
+            color = (<span class="nm">0</span>, <span class="nm">0</span>, <span class="nm">255</span>)
+        <span class="kw">elif</span> confidence >= <span class="nm">70</span>:
+            color = (<span class="nm">0</span>, <span class="nm">255</span>, <span class="nm">0</span>)
+        <span class="kw">else</span>:
+            color = (<span class="nm">0</span>, <span class="nm">165</span>, <span class="nm">255</span>)
+        cv2.<span class="fn">rectangle</span>(frame, (left, top), (right, bottom), color, <span class="nm">2</span>)
+        cv2.<span class="fn">rectangle</span>(frame, (left-<span class="nm">3</span>, top-<span class="nm">45</span>), (right+<span class="nm">3</span>, top), color, cv2.FILLED)
+        font = cv2.FONT_HERSHEY_DUPLEX
+        cv2.<span class="fn">putText</span>(frame, name, (left+<span class="nm">6</span>, top-<span class="nm">26</span>), font, <span class="nm">0.7</span>, (<span class="nm">255</span>,<span class="nm">255</span>,<span class="nm">255</span>), <span class="nm">1</span>)
+        <span class="kw">if</span> name != <span class="st">"Unknown"</span>:
+            cv2.<span class="fn">putText</span>(frame, f<span class="st">"{confidence}%"</span>, (left+<span class="nm">6</span>, top-<span class="nm">8</span>), font, <span class="nm">0.5</span>, (<span class="nm">255</span>,<span class="nm">255</span>,<span class="nm">255</span>), <span class="nm">1</span>)
+    <span class="kw">return</span> frame
+
+<span class="kw">def</span> <span class="fn">calculate_fps</span>():
+    <span class="kw">global</span> frame_count, start_time, fps
+    frame_count += <span class="nm">1</span>
+    elapsed_time = time.<span class="fn">time</span>() - start_time
+    <span class="kw">if</span> elapsed_time > <span class="nm">1</span>:
+        fps = frame_count / elapsed_time
+        frame_count = <span class="nm">0</span>
+        start_time = time.<span class="fn">time</span>()
+    <span class="kw">return</span> fps
+
+<span class="kw">def</span> <span class="fn">draw_hud</span>(frame, current_fps, zoom_factor, cv_scaler, frame_skip):
+    h, w = frame.shape[:<span class="nm">2</span>]
+    fps_color = (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>) <span class="kw">if</span> current_fps >= <span class="nm">5</span> <span class="kw">else</span> (<span class="nm">0</span>,<span class="nm">165</span>,<span class="nm">255</span>) <span class="kw">if</span> current_fps >= <span class="nm">3</span> <span class="kw">else</span> (<span class="nm">0</span>,<span class="nm">0</span>,<span class="nm">255</span>)
+    cv2.<span class="fn">putText</span>(frame, f<span class="st">"FPS: {current_fps:.1f}"</span>, (w-<span class="nm">150</span>, <span class="nm">30</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.8</span>, fps_color, <span class="nm">2</span>)
+    cv2.<span class="fn">putText</span>(frame, f<span class="st">"Zoom: {zoom_factor}x"</span>, (<span class="nm">10</span>, <span class="nm">30</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.8</span>, (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+    cv2.<span class="fn">putText</span>(frame, f<span class="st">"Detail: {cv_scaler} | Skip: {frame_skip}"</span>, (<span class="nm">10</span>, <span class="nm">60</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.6</span>, (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+    known_count = <span class="fn">sum</span>(<span class="nm">1</span> <span class="kw">for</span> n <span class="kw">in</span> face_names <span class="kw">if</span> n != <span class="st">"Unknown"</span>)
+    unknown_count = <span class="fn">sum</span>(<span class="nm">1</span> <span class="kw">for</span> n <span class="kw">in</span> face_names <span class="kw">if</span> n == <span class="st">"Unknown"</span>)
+    cv2.<span class="fn">putText</span>(frame, f<span class="st">"Known: {known_count} Unknown: {unknown_count}"</span>, (<span class="nm">10</span>, <span class="nm">90</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.7</span>, (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+    cv2.<span class="fn">putText</span>(frame, <span class="st">"= zoom in | - zoom out | q quit"</span>, (<span class="nm">10</span>, h-<span class="nm">10</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.5</span>, (<span class="nm">255</span>,<span class="nm">255</span>,<span class="nm">255</span>), <span class="nm">1</span>)
+    <span class="kw">return</span> frame
+
+<span class="fn">print</span>(<span class="st">"[INFO] starting face recognition..."</span>)
+<span class="fn">print</span>(<span class="st">"Controls: = zoom in | - zoom out | q quit"</span>)
+
+<span class="kw">while</span> <span class="nm">True</span>:
+    display_raw = picam2.<span class="fn">capture_array</span>(<span class="st">"lores"</span>)
+    display_raw = cv2.<span class="fn">cvtColor</span>(display_raw, cv2.COLOR_YUV420p2RGB)
+    display_frame = cv2.<span class="fn">resize</span>(display_raw, (<span class="nm">1280</span>, <span class="nm">720</span>), interpolation=cv2.INTER_AREA)
+    frame_skip_count += <span class="nm">1</span>
+    <span class="kw">if</span> frame_skip_count % frame_skip == <span class="nm">0</span>:
+        main_frame = picam2.<span class="fn">capture_array</span>(<span class="st">"main"</span>)
+        <span class="fn">process_frame</span>(main_frame)
+        frame_skip_count = <span class="nm">0</span>
+    display_scale = <span class="nm">1280</span> / <span class="nm">1920</span>
+    display_frame = <span class="fn">draw_results</span>(display_frame, display_scale)
+    current_fps = <span class="fn">calculate_fps</span>()
+    display_frame = <span class="fn">draw_hud</span>(display_frame, current_fps, zoom_factor, cv_scaler, frame_skip)
+    cv2.<span class="fn">imshow</span>(<span class="st">"Face Recognition"</span>, display_frame)
+    key = cv2.<span class="fn">waitKey</span>(<span class="nm">1</span>) & <span class="nm">0xFF</span>
+    <span class="kw">if</span> key == <span class="fn">ord</span>(<span class="st">'='</span>):
+        zoom_factor = <span class="fn">min</span>(zoom_factor + <span class="nm">0.5</span>, <span class="nm">8.0</span>)
+        <span class="fn">update_zoom</span>(picam2, zoom_factor)
+        cv_scaler = <span class="fn">get_cv_scaler</span>(zoom_factor)
+        frame_skip = <span class="fn">get_frame_skip</span>(zoom_factor)
+    <span class="kw">elif</span> key == <span class="fn">ord</span>(<span class="st">'-'</span>):
+        zoom_factor = <span class="fn">max</span>(zoom_factor - <span class="nm">0.5</span>, <span class="nm">1.0</span>)
+        <span class="fn">update_zoom</span>(picam2, zoom_factor)
+        cv_scaler = <span class="fn">get_cv_scaler</span>(zoom_factor)
+        frame_skip = <span class="fn">get_frame_skip</span>(zoom_factor)
+    <span class="kw">elif</span> key == <span class="fn">ord</span>(<span class="st">'q'</span>):
+        <span class="kw">break</span>
+
+cv2.<span class="fn">destroyAllWindows</span>()
+picam2.<span class="fn">stop</span>()
+</pre></div>
+    </div>
+
+    <!-- model_training.py -->
+    <div class="code-panel" id="tab-train">
+      <div class="code-header">
+        <span class="code-filename">model_training.py</span>
+        <span class="code-lang">Python</span>
+      </div>
+      <div class="code-body"><pre>
+<span class="kw">import</span> os
+<span class="kw">import</span> face_recognition
+<span class="kw">import</span> pickle
+<span class="kw">import</span> cv2
+<span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+
+<span class="kw">def</span> <span class="fn">list_images</span>(path):
+    extensions = [<span class="st">".jpg"</span>, <span class="st">".jpeg"</span>, <span class="st">".png"</span>, <span class="st">".bmp"</span>]
+    <span class="kw">for</span> root, dirs, files <span class="kw">in</span> os.<span class="fn">walk</span>(path):
+        <span class="kw">for</span> file <span class="kw">in</span> files:
+            <span class="kw">if</span> os.path.<span class="fn">splitext</span>(file)[<span class="nm">1</span>].<span class="fn">lower</span>() <span class="kw">in</span> extensions:
+                <span class="kw">yield</span> os.path.<span class="fn">join</span>(root, file)
+
+<span class="kw">def</span> <span class="fn">augment_image</span>(image):
+    augmented = [image]
+    augmented.<span class="fn">append</span>(cv2.<span class="fn">flip</span>(image, <span class="nm">1</span>))
+    bright = cv2.<span class="fn">convertScaleAbs</span>(image, alpha=<span class="nm">1.2</span>, beta=<span class="nm">20</span>)
+    augmented.<span class="fn">append</span>(bright)
+    dark = cv2.<span class="fn">convertScaleAbs</span>(image, alpha=<span class="nm">0.8</span>, beta=-<span class="nm">20</span>)
+    augmented.<span class="fn">append</span>(dark)
+    h, w = image.shape[:<span class="nm">2</span>]
+    M = cv2.<span class="fn">getRotationMatrix2D</span>((w/<span class="nm">2</span>, h/<span class="nm">2</span>), <span class="nm">10</span>, <span class="nm">1.0</span>)
+    augmented.<span class="fn">append</span>(cv2.<span class="fn">warpAffine</span>(image, M, (w, h)))
+    M = cv2.<span class="fn">getRotationMatrix2D</span>((w/<span class="nm">2</span>, h/<span class="nm">2</span>), -<span class="nm">10</span>, <span class="nm">1.0</span>)
+    augmented.<span class="fn">append</span>(cv2.<span class="fn">warpAffine</span>(image, M, (w, h)))
+    <span class="kw">return</span> augmented
+
+<span class="fn">print</span>(<span class="st">"=" * 50</span>)
+<span class="fn">print</span>(<span class="st">"FACE RECOGNITION MODEL TRAINER"</span>)
+<span class="fn">print</span>(<span class="st">"=" * 50</span>)
+<span class="fn">print</span>(f<span class="st">"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"</span>)
+
+imagePaths = <span class="fn">list</span>(<span class="fn">list_images</span>(<span class="st">"dataset"</span>))
+
+<span class="kw">if</span> <span class="fn">len</span>(imagePaths) == <span class="nm">0</span>:
+    <span class="fn">print</span>(<span class="st">"[ERROR] No images found in dataset folder."</span>)
+    <span class="fn">exit</span>()
+
+people = {}
+<span class="kw">for</span> imagePath <span class="kw">in</span> imagePaths:
+    name = imagePath.<span class="fn">split</span>(os.path.sep)[-<span class="nm">2</span>]
+    <span class="kw">if</span> name <span class="kw">not in</span> people:
+        people[name] = <span class="nm">0</span>
+    people[name] += <span class="nm">1</span>
+
+<span class="fn">print</span>(f<span class="st">"[INFO] Found {len(people)} people and {len(imagePaths)} total images:"</span>)
+<span class="kw">for</span> person, count <span class="kw">in</span> <span class="fn">sorted</span>(people.<span class="fn">items</span>()):
+    status = <span class="st">"✓"</span> <span class="kw">if</span> count >= <span class="nm">30</span> <span class="kw">else</span> <span class="st">"⚠ low"</span>
+    <span class="fn">print</span>(f<span class="st">"  {status} {person}: {count} photos"</span>)
+
+knownEncodings = []
+knownNames = []
+failed = []
+total = <span class="fn">len</span>(imagePaths)
+
+<span class="kw">for</span> (i, imagePath) <span class="kw">in</span> <span class="fn">enumerate</span>(imagePaths):
+    name = imagePath.<span class="fn">split</span>(os.path.sep)[-<span class="nm">2</span>]
+    <span class="fn">print</span>(f<span class="st">"[INFO] Processing {i+1}/{total} — {name} — {os.path.basename(imagePath)}"</span>)
+    image = cv2.<span class="fn">imread</span>(imagePath)
+    <span class="kw">if</span> image <span class="kw">is</span> <span class="nm">None</span>:
+        failed.<span class="fn">append</span>(imagePath)
+        <span class="kw">continue</span>
+    rgb = cv2.<span class="fn">cvtColor</span>(image, cv2.COLOR_BGR2RGB)
+    boxes = face_recognition.<span class="fn">face_locations</span>(rgb, model=<span class="st">"hog"</span>)
+    <span class="kw">if</span> <span class="fn">len</span>(boxes) == <span class="nm">0</span>:
+        <span class="fn">print</span>(<span class="st">"  [RETRY] HOG found no face, trying CNN..."</span>)
+        boxes = face_recognition.<span class="fn">face_locations</span>(rgb, model=<span class="st">"cnn"</span>)
+    <span class="kw">if</span> <span class="fn">len</span>(boxes) == <span class="nm">0</span>:
+        failed.<span class="fn">append</span>(imagePath)
+        <span class="kw">continue</span>
+    <span class="kw">if</span> <span class="fn">len</span>(boxes) > <span class="nm">1</span>:
+        boxes = [<span class="fn">max</span>(boxes, key=<span class="kw">lambda</span> b: (b[<span class="nm">2</span>]-b[<span class="nm">0</span>]) * (b[<span class="nm">1</span>]-b[<span class="nm">3</span>]))]
+    encodings = face_recognition.<span class="fn">face_encodings</span>(rgb, boxes, model=<span class="st">"large"</span>, num_jitters=<span class="nm">3</span>)
+    augmented_images = <span class="fn">augment_image</span>(rgb)
+    <span class="kw">for</span> aug_image <span class="kw">in</span> augmented_images:
+        aug_boxes = face_recognition.<span class="fn">face_locations</span>(aug_image, model=<span class="st">"hog"</span>)
+        <span class="kw">if</span> <span class="fn">len</span>(aug_boxes) > <span class="nm">0</span>:
+            aug_enc = face_recognition.<span class="fn">face_encodings</span>(aug_image, aug_boxes, model=<span class="st">"large"</span>, num_jitters=<span class="nm">3</span>)
+            <span class="kw">for</span> enc <span class="kw">in</span> aug_enc:
+                knownEncodings.<span class="fn">append</span>(enc)
+                knownNames.<span class="fn">append</span>(name)
+    <span class="kw">for</span> enc <span class="kw">in</span> encodings:
+        knownEncodings.<span class="fn">append</span>(enc)
+        knownNames.<span class="fn">append</span>(name)
+
+<span class="fn">print</span>(<span class="st">"[INFO] Saving encodings..."</span>)
+data = {<span class="st">"encodings"</span>: knownEncodings, <span class="st">"names"</span>: knownNames}
+<span class="kw">with</span> <span class="fn">open</span>(<span class="st">"encodings.pickle"</span>, <span class="st">"wb"</span>) <span class="kw">as</span> f:
+    f.<span class="fn">write</span>(pickle.<span class="fn">dumps</span>(data))
+
+<span class="fn">print</span>(f<span class="st">"Total encodings saved: {len(knownEncodings)}"</span>)
+<span class="fn">print</span>(f<span class="st">"People trained: {len(people)}"</span>)
+<span class="kw">if</span> failed:
+    <span class="fn">print</span>(f<span class="st">"Failed/skipped: {len(failed)}"</span>)
+<span class="fn">print</span>(<span class="st">"TRAINING COMPLETE"</span>)
+</pre></div>
+    </div>
+
+    <!-- headshots_capture.py -->
+    <div class="code-panel" id="tab-shots">
+      <div class="code-header">
+        <span class="code-filename">headshots_capture_picam.py</span>
+        <span class="code-lang">Python</span>
+      </div>
+      <div class="code-body"><pre>
+<span class="kw">import</span> cv2
+<span class="kw">import</span> os
+<span class="kw">from</span> datetime <span class="kw">import</span> datetime
+<span class="kw">from</span> picamera2 <span class="kw">import</span> Picamera2
+<span class="kw">from</span> libcamera <span class="kw">import</span> controls
+<span class="kw">import</span> time
+
+PERSON_NAME = <span class="st">"Name"</span>
+CAPTURE_SIZE = (<span class="nm">3840</span>, <span class="nm">2160</span>)  <span class="cm"># 4K captures for training</span>
+DISPLAY_SIZE = (<span class="nm">1280</span>, <span class="nm">720</span>)
+
+<span class="kw">def</span> <span class="fn">create_folder</span>(name):
+    dataset_folder = <span class="st">"dataset"</span>
+    <span class="kw">if not</span> os.path.<span class="fn">exists</span>(dataset_folder):
+        os.<span class="fn">makedirs</span>(dataset_folder)
+    person_folder = os.path.<span class="fn">join</span>(dataset_folder, name)
+    <span class="kw">if not</span> os.path.<span class="fn">exists</span>(person_folder):
+        os.<span class="fn">makedirs</span>(person_folder)
+    <span class="kw">return</span> person_folder
+
+<span class="kw">def</span> <span class="fn">capture_photos</span>(name):
+    folder = <span class="fn">create_folder</span>(name)
+    picam2 = <span class="fn">Picamera2</span>()
+    config = picam2.<span class="fn">create_preview_configuration</span>(
+        main={<span class="st">"size"</span>: CAPTURE_SIZE, <span class="st">"format"</span>: <span class="st">"RGB888"</span>},
+        lores={<span class="st">"size"</span>: (<span class="nm">640</span>, <span class="nm">480</span>), <span class="st">"format"</span>: <span class="st">"YUV420"</span>}
+    )
+    picam2.<span class="fn">configure</span>(config)
+    picam2.<span class="fn">start</span>()
+    picam2.<span class="fn">set_controls</span>({
+        <span class="st">"AfMode"</span>: controls.AfModeEnum.Continuous,
+        <span class="st">"AfSpeed"</span>: controls.AfSpeedEnum.Fast
+    })
+    time.<span class="fn">sleep</span>(<span class="nm">2</span>)
+
+    photo_count = <span class="nm">0</span>
+    last_photo_time = <span class="nm">0</span>
+    flash_frames = <span class="nm">0</span>
+
+    <span class="fn">print</span>(f<span class="st">"Capturing for: {name}. SPACE = photo, Q = quit"</span>)
+
+    <span class="kw">while</span> <span class="nm">True</span>:
+        preview = picam2.<span class="fn">capture_array</span>(<span class="st">"lores"</span>)
+        preview = cv2.<span class="fn">cvtColor</span>(preview, cv2.COLOR_YUV420p2BGR)
+        preview = cv2.<span class="fn">resize</span>(preview, DISPLAY_SIZE, interpolation=cv2.INTER_AREA)
+        h, w = preview.shape[:<span class="nm">2</span>]
+
+        <span class="kw">if</span> flash_frames > <span class="nm">0</span>:
+            overlay = preview.<span class="fn">copy</span>()
+            cv2.<span class="fn">rectangle</span>(overlay, (<span class="nm">0</span>,<span class="nm">0</span>), (w,h), (<span class="nm">255</span>,<span class="nm">255</span>,<span class="nm">255</span>), -<span class="nm">1</span>)
+            cv2.<span class="fn">addWeighted</span>(overlay, <span class="nm">0.3</span>, preview, <span class="nm">0.7</span>, <span class="nm">0</span>, preview)
+            flash_frames -= <span class="nm">1</span>
+
+        cv2.<span class="fn">rectangle</span>(preview, (w//<span class="nm">3</span>, h//<span class="nm">4</span>), (<span class="nm">2</span>*w//<span class="nm">3</span>, <span class="nm">3</span>*h//<span class="nm">4</span>), (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+        cv2.<span class="fn">putText</span>(preview, <span class="st">"Align face in box"</span>, (w//<span class="nm">3</span>, h//<span class="nm">4</span>-<span class="nm">10</span>),
+                    cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.6</span>, (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+        cv2.<span class="fn">putText</span>(preview, f<span class="st">"Photos: {photo_count}"</span>, (<span class="nm">20</span>, <span class="nm">40</span>),
+                    cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">1</span>, (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>), <span class="nm">2</span>)
+
+        cooldown = time.<span class="fn">time</span>() - last_photo_time
+        status = <span class="st">"Wait..."</span> <span class="kw">if</span> cooldown < <span class="nm">1.0</span> <span class="kw">else</span> <span class="st">"Ready"</span>
+        color = (<span class="nm">0</span>,<span class="nm">165</span>,<span class="nm">255</span>) <span class="kw">if</span> cooldown < <span class="nm">1.0</span> <span class="kw">else</span> (<span class="nm">0</span>,<span class="nm">255</span>,<span class="nm">0</span>)
+        cv2.<span class="fn">putText</span>(preview, status, (<span class="nm">20</span>, <span class="nm">80</span>), cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.7</span>, color, <span class="nm">2</span>)
+        cv2.<span class="fn">putText</span>(preview, <span class="st">"Target: 50 photos"</span>, (<span class="nm">20</span>, h-<span class="nm">20</span>),
+                    cv2.FONT_HERSHEY_SIMPLEX, <span class="nm">0.6</span>, (<span class="nm">255</span>,<span class="nm">255</span>,<span class="nm">255</span>), <span class="nm">1</span>)
+
+        cv2.<span class="fn">imshow</span>(<span class="st">"Headshot Capture"</span>, preview)
+        key = cv2.<span class="fn">waitKey</span>(<span class="nm">1</span>) & <span class="nm">0xFF</span>
+
+        <span class="kw">if</span> key == <span class="fn">ord</span>(<span class="st">' '</span>):
+            <span class="kw">if</span> time.<span class="fn">time</span>() - last_photo_time < <span class="nm">1.0</span>:
+                <span class="kw">continue</span>
+            photo_count += <span class="nm">1</span>
+            last_photo_time = time.<span class="fn">time</span>()
+            flash_frames = <span class="nm">5</span>
+            picam2.<span class="fn">set_controls</span>({<span class="st">"AfMode"</span>: controls.AfModeEnum.Auto,
+                                   <span class="st">"AfTrigger"</span>: controls.AfTriggerEnum.Start})
+            time.<span class="fn">sleep</span>(<span class="nm">0.5</span>)
+            picam2.<span class="fn">set_controls</span>({<span class="st">"AfMode"</span>: controls.AfModeEnum.Continuous})
+            timestamp = datetime.<span class="fn">now</span>().<span class="fn">strftime</span>(<span class="st">"%Y%m%d_%H%M%S"</span>)
+            filepath = os.path.<span class="fn">join</span>(folder, f<span class="st">"{name}_{timestamp}.jpg"</span>)
+            full_frame = picam2.<span class="fn">capture_array</span>(<span class="st">"main"</span>)
+            cv2.<span class="fn">imwrite</span>(filepath, full_frame, [cv2.IMWRITE_JPEG_QUALITY, <span class="nm">95</span>])
+            <span class="fn">print</span>(f<span class="st">"Saved {photo_count}/50: {filepath}"</span>)
+            <span class="kw">if</span> photo_count % <span class="nm">10</span> == <span class="nm">0</span>:
+                <span class="fn">print</span>(f<span class="st">"Try a different angle or lighting now"</span>)
+        <span class="kw">elif</span> key == <span class="fn">ord</span>(<span class="st">'q'</span>):
+            <span class="kw">break</span>
+
+    cv2.<span class="fn">destroyAllWindows</span>()
+    picam2.<span class="fn">stop</span>()
+    <span class="fn">print</span>(f<span class="st">"Done. {photo_count} photos saved for {name}."</span>)
+    <span class="kw">if</span> photo_count < <span class="nm">30</span>:
+        <span class="fn">print</span>(f<span class="st">"Warning: aim for 50 for best accuracy"</span>)
+
+<span class="kw">if</span> __name__ == <span class="st">"__main__"</span>:
+    <span class="fn">capture_photos</span>(PERSON_NAME)
+</pre></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- BOM -->
+<section id="bom">
+  <div class="section-label">Hardware</div>
+  <h2>Bill of Materials</h2>
+  <table class="bom-table">
+    <thead>
+      <tr>
+        <th>Part</th>
+        <th>Purpose</th>
+        <th>Price</th>
+        <th>Link</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>10.1" Security Monitor</td>
+        <td>Displays the live recognition feed with bounding boxes and HUD overlays</td>
+        <td class="price-tag">$78</td>
+        <td><a href="https://www.amazon.com/Haiway-Security-Surveillance-Controller-Resolution/dp/B07WKG9J35?th=1" target="_blank">→ Amazon</a></td>
+      </tr>
+      <tr>
+        <td>Raspberry Pi 4 Starter Kit</td>
+        <td>The brain — runs the entire recognition pipeline, OpenCV, and dlib on a single ARM CPU</td>
+        <td class="price-tag">$150</td>
+        <td><a href="https://www.amazon.com/CanaKit-Raspberry-4GB-Starter-Kit/dp/B07V5JTMV9/" target="_blank">→ Amazon</a></td>
+      </tr>
+      <tr>
+        <td>Arducam 64MP Hawkeye</td>
+        <td>64MP sensor with autofocus and digital zoom — gives enough resolution to detect faces at distance without a telephoto lens</td>
+        <td class="price-tag">$50</td>
+        <td><a href="https://www.amazon.com/Raspberry-Pi-Camera-Module/dp/B0BRY6MVXL/" target="_blank">→ Amazon</a></td>
+      </tr>
+      <tr>
+        <td>Keyboard &amp; Mouse (Wired)</td>
+        <td>Controls the Pi desktop, edits scripts, and adjusts zoom during live recognition</td>
+        <td class="price-tag">$15</td>
+        <td><a href="https://www.amazon.com/Logitech-Keyboard-Windows-Optical-Full-Size/dp/B003NREDC8/" target="_blank">→ Amazon</a></td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  Built at <span>Blue Stamp Engineering</span> · Aarush H · 2025
+</footer>
+
+<script>
+  function showTab(id) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.code-panel').forEach(p => p.classList.remove('active'));
+    document.getElementById('tab-' + id).classList.add('active');
+    event.target.classList.add('active');
+  }
+</script>
+
 </body>
 </html>
