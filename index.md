@@ -1,7 +1,4 @@
----
-layout: default
-title: Facial Recognition System
----
+
 # Facial Recognition System
 
 This project uses a Raspberry Pi to build a real-time facial recognition system capable of identifying people at distance using a 64MP camera, digital zoom, and machine learning. The system is trained on a custom image dataset to recognize specific individuals through a connected camera with live confidence scoring.
