@@ -59,7 +59,7 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 - Built retro arcade device by connecting a battery to the metal contacts on the back of the device, soldering the side charging port and buttons (movement and reset), then finally putting it all together in the acrylic case with the screws.
 ---
-<!--
+<!---
 ## Schematics
 
 This is a software-heavy project, so traditional circuit diagrams are minimal. Here's what's worth documenting visually:
@@ -74,7 +74,7 @@ The Arducam 64MP Hawkeye connects via CSI ribbon cable to the Raspberry Pi 4's c
 A simple labeled photo or diagram showing: Raspberry Pi 4, Arducam 64MP Hawkeye on CSI port, monitor via HDMI, keyboard/mouse via USB, power supply. No breadboard or wiring complexity — this project's hardware is all plug-and-play, the complexity lives in the software.
 
 ---
--->
+--->
 ## Code
 
 ### Face Recognition (face_rec-picam.py)
