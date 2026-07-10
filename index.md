@@ -89,30 +89,35 @@ known_face_names = data["names"]
 print(f"[INFO] loaded {len(set(known_face_names))} people, {len(known_face_names)} total encodings")
 
 def get_cv_scaler(zoom_factor):
+    # More zoom = more detail needed = lower scaler
     if zoom_factor >= 6.0:
-        return 1
+        return 1  # maximum detail at very high zoom
     elif zoom_factor >= 4.0:
-        return 2
+        return 2  # high detail
     elif zoom_factor >= 2.0:
-        return 3
+        return 3  # balanced
     else:
-        return 4
+        return 4  # speed at wide angle
 
 def get_frame_skip(zoom_factor):
+    # More zoom = lower cv_scaler = more processing = need more skip
     if zoom_factor >= 4.0:
-        return 12
+        return 12  # heavy processing at high zoom
     elif zoom_factor >= 2.0:
-        return 8
+        return 8   # balanced
     else:
-        return 6
+        return 6   # faster at wide angle since cv_scaler is higher
 
 def update_zoom(picam2, zoom_factor):
     size = picam2.camera_properties['PixelArraySize']
     full_width, full_height = size
+
+    # Use actual camera sensor zoom via ScalerCrop
     crop_width = int(full_width / zoom_factor)
     crop_height = int(full_height / zoom_factor)
     crop_x = (full_width - crop_width) // 2
     crop_y = (full_height - crop_height) // 2
+
     picam2.set_controls({
         "ScalerCrop": (crop_x, crop_y, crop_width, crop_height),
         "AfMode": controls.AfModeEnum.Auto,
@@ -120,7 +125,7 @@ def update_zoom(picam2, zoom_factor):
         "AfSpeed": controls.AfSpeedEnum.Fast,
         "AfRange": controls.AfRangeEnum.Full
     })
-    time.sleep(0.8)
+    time.sleep(0.8)  # wait for autofocus to lock at new zoom level
     picam2.set_controls({
         "AfMode": controls.AfModeEnum.Continuous,
         "AfSpeed": controls.AfSpeedEnum.Fast,
@@ -128,6 +133,7 @@ def update_zoom(picam2, zoom_factor):
     })
     return zoom_factor
 
+# Initialize camera
 picam2 = Picamera2()
 config = picam2.create_preview_configuration(
     main={"size": (1920, 1080), "format": "RGB888"},
@@ -136,6 +142,7 @@ config = picam2.create_preview_configuration(
 picam2.configure(config)
 picam2.start()
 
+# Full range autofocus on startup - lock at distance
 picam2.set_controls({
     "AfMode": controls.AfModeEnum.Auto,
     "AfTrigger": controls.AfTriggerEnum.Start,
@@ -143,7 +150,7 @@ picam2.set_controls({
     "AfRange": controls.AfRangeEnum.Full
 })
 
-time.sleep(3)
+time.sleep(3)  # give autofocus time to lock at distance
 
 picam2.set_controls({
     "AfMode": controls.AfModeEnum.Continuous,
@@ -151,6 +158,7 @@ picam2.set_controls({
     "AfRange": controls.AfRangeEnum.Full
 })
 
+# Start at 2x zoom
 zoom_factor = 2.0
 update_zoom(picam2, zoom_factor)
 cv_scaler = get_cv_scaler(zoom_factor)
@@ -158,6 +166,7 @@ frame_skip = get_frame_skip(zoom_factor)
 
 time.sleep(1)
 
+# Initialize variables
 face_locations = []
 face_encodings_list = []
 face_names = []
@@ -170,23 +179,51 @@ last_known_display = None
 
 def process_frame(frame):
     global face_locations, face_encodings_list, face_names, face_distances_list
+
     resized_frame = cv2.resize(frame, (0, 0), fx=(1/cv_scaler), fy=(1/cv_scaler))
     rgb_resized_frame = cv2.cvtColor(resized_frame, cv2.COLOR_BGR2RGB)
-    face_locations = face_recognition.face_locations(rgb_resized_frame, model="hog", number_of_times_to_upsample=1)
+
+    # HOG detection
+    face_locations = face_recognition.face_locations(
+        rgb_resized_frame,
+        model="hog",
+        number_of_times_to_upsample=1
+    )
+
+    # If no faces found and zoom is high enough, try with upsample=2
+    # Only do this at higher zoom since processing is lighter there
     if len(face_locations) == 0 and zoom_factor >= 3.0:
-        face_locations = face_recognition.face_locations(rgb_resized_frame, model="hog", number_of_times_to_upsample=2)
-    face_encodings_list = face_recognition.face_encodings(rgb_resized_frame, face_locations, model="large")
+        face_locations = face_recognition.face_locations(
+            rgb_resized_frame,
+            model="hog",
+            number_of_times_to_upsample=2
+        )
+
+    face_encodings_list = face_recognition.face_encodings(
+        rgb_resized_frame,
+        face_locations,
+        model="large"
+    )
+
     face_names = []
     face_distances_list = []
+
     for face_encoding in face_encodings_list:
-        matches = face_recognition.compare_faces(known_face_encodings, face_encoding, tolerance=0.5)
+        matches = face_recognition.compare_faces(
+            known_face_encodings,
+            face_encoding,
+            tolerance=0.5
+        )
         name = "Unknown"
         confidence = 0
+
         face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
         best_match_index = np.argmin(face_distances)
+
         if matches[best_match_index]:
             name = known_face_names[best_match_index]
             confidence = round((1 - face_distances[best_match_index]) * 100, 1)
+
         face_names.append(name)
         face_distances_list.append(confidence)
 
@@ -196,18 +233,24 @@ def draw_results(frame, display_scale):
         right = int(right * cv_scaler * display_scale)
         bottom = int(bottom * cv_scaler * display_scale)
         left = int(left * cv_scaler * display_scale)
+
+        # Green for known, red for unknown, yellow for low confidence
         if name == "Unknown":
             color = (0, 0, 255)
         elif confidence >= 70:
-            color = (0, 255, 0)
+            color = (0, 255, 0)   # green - high confidence
         else:
-            color = (0, 165, 255)
+            color = (0, 165, 255) # orange - low confidence
+
         cv2.rectangle(frame, (left, top), (right, bottom), color, 2)
         cv2.rectangle(frame, (left - 3, top - 45), (right + 3, top), color, cv2.FILLED)
+
         font = cv2.FONT_HERSHEY_DUPLEX
         cv2.putText(frame, name, (left + 6, top - 26), font, 0.7, (255, 255, 255), 1)
+
         if name != "Unknown":
             cv2.putText(frame, f"{confidence}%", (left + 6, top - 8), font, 0.5, (255, 255, 255), 1)
+
     return frame
 
 def calculate_fps():
@@ -222,46 +265,72 @@ def calculate_fps():
 
 def draw_hud(frame, current_fps, zoom_factor, cv_scaler, frame_skip):
     h, w = frame.shape[:2]
+
+    # FPS - top right
     fps_color = (0, 255, 0) if current_fps >= 5 else (0, 165, 255) if current_fps >= 3 else (0, 0, 255)
-    cv2.putText(frame, f"FPS: {current_fps:.1f}", (w - 150, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, fps_color, 2)
-    cv2.putText(frame, f"Zoom: {zoom_factor}x", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
-    cv2.putText(frame, f"Detail: {cv_scaler} | Skip: {frame_skip}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    cv2.putText(frame, f"FPS: {current_fps:.1f}",
+                (w - 150, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, fps_color, 2)
+
+    # Zoom - top left
+    cv2.putText(frame, f"Zoom: {zoom_factor}x",
+                (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+
+    # Detail scaler
+    cv2.putText(frame, f"Detail: {cv_scaler} | Skip: {frame_skip}",
+                (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+    # People count
     known_count = sum(1 for n in face_names if n != "Unknown")
     unknown_count = sum(1 for n in face_names if n == "Unknown")
-    cv2.putText(frame, f"Known: {known_count} Unknown: {unknown_count}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
-    cv2.putText(frame, "= zoom in | - zoom out | q quit", (10, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+    cv2.putText(frame, f"Known: {known_count} Unknown: {unknown_count}",
+                (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+    # Controls reminder at bottom
+    cv2.putText(frame, "= zoom in | - zoom out | q quit",
+                (10, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+
     return frame
 
 print("[INFO] starting face recognition...")
 print("Controls: = zoom in | - zoom out | q quit")
 
 while True:
+    # Always display lores for smooth feed
     display_raw = picam2.capture_array("lores")
     display_raw = cv2.cvtColor(display_raw, cv2.COLOR_YUV420p2RGB)
-    display_frame = cv2.resize(display_raw, (1280, 720), interpolation=cv2.INTER_AREA)
+    display_frame = cv2.resize(display_raw, (1024, 600), interpolation=cv2.INTER_AREA)
+
+    # Process main stream every Nth frame based on zoom level
     frame_skip_count += 1
     if frame_skip_count % frame_skip == 0:
         main_frame = picam2.capture_array("main")
         process_frame(main_frame)
         frame_skip_count = 0
-    display_scale = 1280 / 1920
+
+    display_scale = 1024 / 1920
     display_frame = draw_results(display_frame, display_scale)
+
     current_fps = calculate_fps()
     display_frame = draw_hud(display_frame, current_fps, zoom_factor, cv_scaler, frame_skip)
+
     cv2.imshow("Face Recognition", display_frame)
+
     key = cv2.waitKey(1) & 0xFF
+
     if key == ord('='):
         zoom_factor = min(zoom_factor + 0.5, 8.0)
         update_zoom(picam2, zoom_factor)
         cv_scaler = get_cv_scaler(zoom_factor)
         frame_skip = get_frame_skip(zoom_factor)
         print(f"Zoom: {zoom_factor}x | Detail: {cv_scaler} | Skip: {frame_skip}")
+
     elif key == ord('-'):
         zoom_factor = max(zoom_factor - 0.5, 1.0)
         update_zoom(picam2, zoom_factor)
         cv_scaler = get_cv_scaler(zoom_factor)
         frame_skip = get_frame_skip(zoom_factor)
         print(f"Zoom: {zoom_factor}x | Detail: {cv_scaler} | Skip: {frame_skip}")
+
     elif key == ord('q'):
         break
 
@@ -275,6 +344,7 @@ picam2.stop()
 Processes every photo in the dataset, augments each image 6x, and builds the encodings.pickle file the recognition script loads.
 
 ```python
+import gc
 import os
 import face_recognition
 import pickle
@@ -283,7 +353,7 @@ import numpy as np
 from datetime import datetime
 
 def list_images(path):
-    extensions = [".jpg", ".jpeg", ".png", ".bmp"]
+    extensions = [".jpg", ".jpeg", ".png", ".bmp", ".pgm"]
     for root, dirs, files in os.walk(path):
         for file in files:
             if os.path.splitext(file)[1].lower() in extensions:
@@ -291,18 +361,29 @@ def list_images(path):
 
 def augment_image(image):
     augmented = [image]
+   
+    # Horizontal flip
     augmented.append(cv2.flip(image, 1))
+   
+    # Slightly brighter
     bright = cv2.convertScaleAbs(image, alpha=1.2, beta=20)
     augmented.append(bright)
+   
+    # Slightly darker
     dark = cv2.convertScaleAbs(image, alpha=0.8, beta=-20)
     augmented.append(dark)
+   
+    # Slight rotation left
     h, w = image.shape[:2]
     M = cv2.getRotationMatrix2D((w/2, h/2), 10, 1.0)
     rotated_left = cv2.warpAffine(image, M, (w, h))
     augmented.append(rotated_left)
+   
+    # Slight rotation right
     M = cv2.getRotationMatrix2D((w/2, h/2), -10, 1.0)
     rotated_right = cv2.warpAffine(image, M, (w, h))
     augmented.append(rotated_right)
+   
     return augmented
 
 print("=" * 50)
@@ -311,12 +392,15 @@ print("=" * 50)
 print(f"Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print()
 
+# Get all image paths
 imagePaths = list(list_images("dataset"))
 
 if len(imagePaths) == 0:
     print("[ERROR] No images found in dataset folder.")
+    print("Make sure your dataset folder has subfolders named after each person.")
     exit()
 
+# Count people and photos
 people = {}
 for imagePath in imagePaths:
     name = imagePath.split(os.path.sep)[-2]
@@ -330,6 +414,10 @@ for person, count in sorted(people.items()):
     print(f"  {status} {person}: {count} photos")
 print()
 
+if any(count < 30 for count in people.values()):
+    print("[WARNING] Some people have fewer than 30 photos — accuracy may be lower")
+    print()
+
 knownEncodings = []
 knownNames = []
 failed = []
@@ -338,35 +426,60 @@ total = len(imagePaths)
 for (i, imagePath) in enumerate(imagePaths):
     name = imagePath.split(os.path.sep)[-2]
     print(f"[INFO] Processing {i + 1}/{total} — {name} — {os.path.basename(imagePath)}")
+   
+    # Read image
     image = cv2.imread(imagePath)
+   
     if image is None:
         print(f"  [SKIP] Could not read image: {imagePath}")
         failed.append(imagePath)
         continue
+   
+    # Convert to RGB
     rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+   
+    # Find faces using HOG
     boxes = face_recognition.face_locations(rgb, model="hog")
-    if len(boxes) == 0:
-        print(f"  [RETRY] HOG found no face, trying CNN...")
-        boxes = face_recognition.face_locations(rgb, model="cnn")
+
+
+   
     if len(boxes) == 0:
         print(f"  [SKIP] No face found in {os.path.basename(imagePath)}")
         failed.append(imagePath)
+
+        try:
+            os.remove(imagePath)
+            print(f"  [DELETE] Removed {os.path.basename(imagePath)}")
+        except Exception as e:
+            print(f"  [ERROR] Could not delete file: {e}")
+
         continue
+
+   
     if len(boxes) > 1:
+        print(f"  [WARN] Multiple faces found, using largest face only")
+        # Use largest face (closest to camera)
         boxes = [max(boxes, key=lambda b: (b[2]-b[0]) * (b[1]-b[3]))]
-    encodings = face_recognition.face_encodings(rgb, boxes, model="large", num_jitters=3)
+   
+    # Get encodings using large model for better accuracy
+    encodings = face_recognition.face_encodings(rgb, boxes, model="large", num_jitters=1)
+   
+    # Augment image to improve training
     augmented_images = augment_image(rgb)
+   
     for aug_image in augmented_images:
         aug_boxes = face_recognition.face_locations(aug_image, model="hog")
         if len(aug_boxes) > 0:
-            aug_encodings = face_recognition.face_encodings(aug_image, aug_boxes, model="large", num_jitters=3)
+            aug_encodings = face_recognition.face_encodings(aug_image, aug_boxes, model="large", num_jitters=1)
             for encoding in aug_encodings:
                 knownEncodings.append(encoding)
                 knownNames.append(name)
+   
     for encoding in encodings:
         knownEncodings.append(encoding)
         knownNames.append(name)
-
+       
+    gc.collect()
 print()
 print("=" * 50)
 print("[INFO] Saving encodings...")
@@ -375,12 +488,16 @@ with open("encodings.pickle", "wb") as f:
     f.write(pickle.dumps(data))
 
 print()
+print("=" * 50)
 print("TRAINING COMPLETE")
+print("=" * 50)
 print(f"Finished: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
 print(f"Total encodings saved: {len(knownEncodings)}")
 print(f"People trained: {len(people)}")
 if failed:
-    print(f"Failed/skipped: {len(failed)}")
+    print(f"Failed/skipped images: {len(failed)}")
+    for f in failed:
+        print(f"  - {f}")
 print("=" * 50)
 ```
 
@@ -397,9 +514,14 @@ from picamera2 import Picamera2
 from libcamera import controls
 import time
 
-PERSON_NAME = "Name"
-CAPTURE_SIZE = (3840, 2160)
-DISPLAY_SIZE = (1280, 720)
+# Change this to the person's name
+PERSON_NAME = "Ali"
+
+# Camera capture resolution (saved images)
+CAPTURE_SIZE = (3840, 2160)  # 4K
+
+# Monitor preview resolution
+DISPLAY_SIZE = (1024, 600)
 
 def create_folder(name):
     dataset_folder = "dataset"
@@ -412,65 +534,117 @@ def create_folder(name):
 
 def capture_photos(name):
     folder = create_folder(name)
+
     picam2 = Picamera2()
+
     config = picam2.create_preview_configuration(
         main={"size": CAPTURE_SIZE, "format": "RGB888"},
         lores={"size": (640, 480), "format": "YUV420"}
     )
     picam2.configure(config)
+
     picam2.start()
+
+    # Enable continuous autofocus
     picam2.set_controls({
         "AfMode": controls.AfModeEnum.Continuous,
         "AfSpeed": controls.AfSpeedEnum.Fast
     })
-    time.sleep(2)
+
+    time.sleep(2)  # Give autofocus time to lock on startup
+
     photo_count = 0
     last_photo_time = 0
     flash_frames = 0
-    print(f"Capturing photos for: {name}\nSPACE = take photo | Q = quit")
+
+    print(f"""
+Capturing photos for: {name}
+SPACE = take photo
+Q     = quit
+Tip: vary angles, lighting and distance for better accuracy
+""")
 
     while True:
+        # Grab low res preview stream directly
         preview = picam2.capture_array("lores")
+
+        # Convert YUV420 to BGR for OpenCV display
         preview = cv2.cvtColor(preview, cv2.COLOR_YUV420p2BGR)
+        preview = cv2.cvtColor(preview, cv2.COLOR_RGB2BGR)
+
+        # Resize to exact display size
         preview = cv2.resize(preview, DISPLAY_SIZE, interpolation=cv2.INTER_AREA)
+
         h, w = preview.shape[:2]
+
+        # Flash effect when photo is taken
         if flash_frames > 0:
             overlay = preview.copy()
             cv2.rectangle(overlay, (0, 0), (w, h), (255, 255, 255), -1)
             cv2.addWeighted(overlay, 0.3, preview, 0.7, 0, preview)
             flash_frames -= 1
+
+        # Face guide box in center
         cv2.rectangle(preview, (w//3, h//4), (2*w//3, 3*h//4), (0, 255, 0), 2)
-        cv2.putText(preview, "Align face in box", (w//3, h//4 - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
-        cv2.putText(preview, f"Photos: {photo_count}", (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+        cv2.putText(preview, "Align face in box", (w//3, h//4 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+
+        # Photo count
+        cv2.putText(preview, f"Photos: {photo_count}",
+                    (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
+
+        # Ready indicator
         cooldown = time.time() - last_photo_time
-        status = "Wait..." if cooldown < 1.0 else "Ready"
-        color = (0, 165, 255) if cooldown < 1.0 else (0, 255, 0)
-        cv2.putText(preview, status, (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, color, 2)
-        cv2.putText(preview, "Target: 50 photos", (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+        if cooldown < 1.0:
+            cv2.putText(preview, "Wait...",
+                        (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 165, 255), 2)
+        else:
+            cv2.putText(preview, "Ready",
+                        (20, 80), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
+
+        # Target count reminder
+        cv2.putText(preview, f"Target: 50 photos",
+                    (20, h - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)
+
         cv2.imshow("Headshot Capture", preview)
         key = cv2.waitKey(1) & 0xFF
+
         if key == ord(' '):
             if time.time() - last_photo_time < 1.0:
                 continue
+
             photo_count += 1
             last_photo_time = time.time()
             flash_frames = 5
-            picam2.set_controls({"AfMode": controls.AfModeEnum.Auto, "AfTrigger": controls.AfTriggerEnum.Start})
-            time.sleep(0.5)
+
+            # Trigger autofocus and wait for lock before capturing
+            picam2.set_controls({"AfMode": controls.AfModeEnum.Auto,
+                                  "AfTrigger": controls.AfTriggerEnum.Start})
+            time.sleep(0.5)  # Wait for autofocus to lock
+
+            # Switch back to continuous after capture
             picam2.set_controls({"AfMode": controls.AfModeEnum.Continuous})
+
+            # Capture full resolution image
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filepath = os.path.join(folder, f"{name}_{timestamp}.jpg")
+            filename = f"{name}_{timestamp}.jpg"
+            filepath = os.path.join(folder, filename)
+
             full_frame = picam2.capture_array("main")
+            print("Frame format:", full_frame.dtype, full_frame.shape)
+           
             cv2.imwrite(filepath, full_frame, [cv2.IMWRITE_JPEG_QUALITY, 95])
             print(f"Saved {photo_count}/50: {filepath}")
+
             if photo_count % 10 == 0:
-                print(f"{photo_count} photos — try a different angle now")
+                print(f"{photo_count} photos taken — try a different angle or lighting now")
+
         elif key == ord('q'):
             break
 
     cv2.destroyAllWindows()
     picam2.stop()
-    print(f"Done. {photo_count} photos saved.")
+    print(f"Finished. {photo_count} photos saved for {name}.")
     if photo_count < 30:
         print(f"Warning: only {photo_count} photos — aim for 50 for best accuracy")
 
