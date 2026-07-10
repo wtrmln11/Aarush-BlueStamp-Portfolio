@@ -62,16 +62,7 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 <!--
 ## Schematics
 
-This is a software-heavy project, so traditional circuit diagrams are minimal. Here's what's worth documenting visually:
-
-**System Architecture Diagram**
-A block diagram showing how data flows through the system: Camera → Picamera2 → OpenCV frame pipeline → face_recognition (HOG detection → encoding → comparison) → display output. Shows the dual-stream setup (lores for display, main for recognition) and where zoom/ScalerCrop fits in.
-
-**Camera Connection Diagram**
-The Arducam 64MP Hawkeye connects via CSI ribbon cable to the Raspberry Pi 4's camera port. Worth showing the physical connection and the ribbon cable orientation since it's easy to insert backwards.
-
-**Component Layout**
-A simple labeled photo or diagram showing: Raspberry Pi 4, Arducam 64MP Hawkeye on CSI port, monitor via HDMI, keyboard/mouse via USB, power supply. No breadboard or wiring complexity — this project's hardware is all plug-and-play, the complexity lives in the software.
+![Schematics](schematic.png)
 
 ---
 -->
