@@ -43,7 +43,7 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
--Set-up OpenCV and Python-scripts that-capture photos on spacebar press and organize them into named folders so the model can associate names with faces
+-Set up OpenCV and Python scripts that capture photos on spacebar press and organize them into named folders so the model can associate names with faces
 
 -The quality of the camera was worse than expected only ever sharp when the subject was directly in front of it
 
