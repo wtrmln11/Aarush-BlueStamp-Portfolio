@@ -7,7 +7,7 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 |:--:|:--:|:--:|:--:|
 | Aarush H | Evergreen Valley High School | Computer Engineering | Incoming Senior |
 
-![Headstone Image](Aarush%20H.jpeg)
+<img src="Aarush%20H.jpeg" alt="Headstone Image" width="300" height="400">
 
 ---
 
