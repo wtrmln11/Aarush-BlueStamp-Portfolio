@@ -30,8 +30,11 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xFbNuY9iE_g?si=Cp3FTndi-fisdUzk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 -Trained the model on images in the dataset using Python, allowing the live feed to show people’s names
+
 -Surprised by how much data the model needs, only 200 pictures of 4 people in the dataset wasn’t enough to allow the model to recognize people past 3 feet
+
 -Initially the live feed was extremely zoomed in, so I adjusted the resolution to fit the monitor and then added more people to the dataset to improve the accuracy of the model
+
 -The next goal is to detect a person from across the classroom, around 10 meters
 
 ---
@@ -40,9 +43,12 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/wKA9XhxVHsE?si=93JbfTmWjfTUcsn5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Set-up OpenCV and Python-scripts that-capture photos on spacebar press and organize them into named folders so the model can associate names with faces
+-Set-up OpenCV and Python-scripts that-capture photos on spacebar press and organize them into named folders so the model can associate names with faces
+
 -The quality of the camera was worse than expected only ever sharp when the subject was directly in front of it
+
 -Some of the captured images became corrupted silently causing me to have to mass delete entire batches of images as there was no way of knowing which were corrupted
+
 -Next goal is to detect myself and at least one other person
 
 ---
