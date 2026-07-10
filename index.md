@@ -59,13 +59,13 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 - Built retro arcade device by connecting a battery to the metal contacts on the back of the device, soldering the side charging port and buttons (movement and reset), then finally putting it all together in the acrylic case with the screws.
 ---
-<!--
+
 ## Schematics
 
-![Schematics](schematic.png)
+![Schematics](Schematic.png)
 
 ---
--->
+
 ## Code
 
 ### Face Recognition (face_rec-picam.py)
