@@ -60,81 +60,81 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 ---
 
-## Challenges and Struggles
+###Challenges and Struggles
 
 This project changed a lot from the first version to the last. Below are the real problems I ran into and how I solved each one.
 
-### Getting faces at a distance
+###Getting faces at a distance
 
-The problem: a camera far from a person captures few pixels on their face. A recognition model needs enough detail to tell people apart. Across a classroom, a face was too small to read.
+The problem: The camera catches few pixels of a face when it is at a distance. The model needs to see enough of a person to recognize who they are. The face at a distance of 3 feet was too small for the model to recognize.
 
-The fix: the camera has a 64 megapixel sensor, which holds far more detail than the screen shows. Stretching a small image adds no real detail, so instead I crop into the sensor. Cropping keeps the true pixels, so a face at distance still has hundreds of pixels to work with. This is digital zoom done the right way. I mapped it to the = and - keys, then later made it automatic.
+The fix: The camera has a 64 megapixel sensor. There’s more detail in the sensor than the screen. The image can be stretched during digitizing,because more pixels=more detail. However,making an image bigger loses no detail, so I can cut into the sensor to capture a face and its hundreds of pixels. This digital zoom works with the =and - keys,on the keyboard. I made it also automatic.
 
-### Blurry and corrupted training photos
+###Blurry and corrupted training photos
 
-The problem: early on the camera was only sharp when the subject stood right in front of it. Some saved photos also became corrupted with no warning, so I had to delete whole batches because I could not tell which files were broken.
+The problem: When the camera was set up,only when someone was in front of the camera did it capture sharp photos.Some of my saved photos became corrupted without any warning. This meant deleting many of my photos.
 
-The fix: I added autofocus that fires right before each photo, plus a short cooldown so I did not take accidental doubles. Saving at high resolution with a set quality level stopped the silent corruption.
+The fix: Adding autofocus to the camera means that the camera will focus when every photo is taken. It will also cool down to give some time to ensure that the autofocus will not be taken twice in a row. Saving the photos at high resolution with a quality set at the camera ensured that no more photos would be corrupted.
 
-### Not enough training data
+###Not enough training data
 
-The problem: my first dataset was about 200 photos of 4 people. The model recognized people up close but failed past 3 feet.
+The problem: My data set had only 200 photos of 4 people. The model worked well for people at close range,but failed at 3 feet away.
 
-The fix: I took more photos at more angles and distances. I also added image augmentation. Augmentation takes each photo and makes several altered copies, flipped, brighter, darker, and slightly rotated. One photo becomes six training examples. This teaches the model to handle real lighting and angles without me taking six times as many pictures.
+The fix: I take more photos of myself from many angles and distances. I used image augmentation to take each of my photos and make a set of 6 photos of myself from flipped,brighter,darker,and rotated images. This teaches my model to see more lighting angles, without taking more of my photos.
 
-### Switching the recognition engine
+###Switching the recognition engine
 
-The first version used a library called face_recognition with a helper called MediaPipe. It worked up close but struggled at distance and on accuracy.
+The first recognition engine used was the face_recognition library together with MediaPipe. It worked well for people up-close,but would fail at a distance or high accuracy.
 
-I switched to InsightFace, a stronger and more modern system, using its buffalo_l model. This was the single biggest jump in accuracy. It reads a face into a list of 512 numbers called an embedding, which works like a fingerprint. To identify someone, I compare their fingerprint to the saved ones and pick the closest match.
+I changed to InsightFace,which is a stronger and more modern recognition engine together with the buffalo_l model. This model converts a face to a list of 512 numbers called an embedding. These numbers act like a fingerprint. By comparing the embedding to their saved embeddings,my program can recognize which face is which.
 
-### The speed problem
+###The speed problem
 
-The problem: the stronger model is slow on a Raspberry Pi. One recognition pass took close to a second. Drawing the box only when recognition finished made it freeze, jump, then freeze again. It felt broken.
+The problem: The new insightface model is slow on the Raspberry Pi. It takes close to a second to recognize a person. However,the model often freezes when drawing a box around the recognized face. It freezes again after the name is found.
 
-The fix: I split the work into two jobs that run at the same time. A slow background job figures out who a face belongs to. A fast job runs every frame and follows the face using a small image patch called a template, sliding it to match motion. The box now moves smoothly every frame while the name updates in the background.
+The fix: Splitting the model into two jobs can run at the same time. The first job is the slow job to recognize the face. The second job is the fast job to run each frame of video and follow the face using a small image of face called a template. The template is used to follow the face and box it in every frame.
 
-### Boxes stuck on the wall
+###Boxes stuck on the wall
 
-The problem: sometimes a box with my name sat on the empty wall behind me. The tracker had drifted onto the wall and would not let go.
+The problem: The box with my name was stuck on the wall behind me. The model was tracking my face,but it was moving to the wall and stuck to the wall.
 
-The fix: I added three guards. The tracker checks that the patch it follows has real detail, and a blank wall fails that test. It counts how often the detector fails to confirm a box and removes boxes that go unconfirmed. I also raised the detector's confidence bar so shadows and wall texture stop registering as faces.
+The fix: Adding three guards to the model will make it recognize wrong tracking. The tracking model checks to see if the face has detail or not. A wall has no detail. If a box is not confirmed by the detector,it is automatically removed. The detector also raises the bar for confidence to avoid marking shadows onto the wall as a face.
 
-### The box showing where I used to be
+###The box showing where I used to be
 
-The problem: because recognition was slow, the box often marked where my face was a second earlier. When I moved, it trailed behind.
+The problem: Since the model is slow,the box illustrating my face has a lag of a second. If I move my head,the box follows me,but stuck to where I was a second earlier.
 
-The insight: the slow detector should not control where the box is drawn, because its information is always a little old. I let the fast tracker own the box position in real time, and let the slow detector only supply the name and correct the box size. The lag went away.
+The insight: The detector model is slow,so it should not be in charge of the position of the box. The fast tracking model owns the position of the box,but the slow detector model only supplies the name of the detected face and corrects the size of the box.
 
-### The box only covering part of my face, or sitting off center
+###The box only covering part of my face, or sitting off-center
 
-The problem: the box was often too small or slid to one side of my face.
+The problem: The box is too small or moves to the side of my face.
 
-The fix: the box now grows and shrinks to match my face as I move closer or farther. When the detector gets a clean look, it gently re-centers the box on my face. I also widened the box a little past the tight detection so it frames my whole head, with even growth on all sides so my face stays centered.
+The fix: The box now expands to cover my face or my head. If I move away or near the camera,the box adjusts to cover me. The box is made to automatically re-center my face. The box is also widened to show my whole head rather than only half my face. The box can now grow or shrink to fit my face.
 
-### Losing the box while moving
+###Losing the box while moving
 
-The problem: quick head movement dropped the box.
+The problem: If I move quicker than normal,the box is lost.
 
-The fix: I made the tracker more forgiving during motion and added a motion predictor. The predictor looks at how I was moving and searches ahead of me on the next frame, so a fast turn does not outrun it.
+The fix: The tracking model is made more forgiving of motion. A motion predictor forecasts where my face will be on the next frame of video. This helps the tracking model to stay on my face even if I move quicker than normal.
 
-### Running out of memory
+###Running out of memory
 
-The problem: pushing the camera to full sensor resolution made the Pi run out of memory and crash.
+The problem: When running at full resolution,the Raspberry Pi limits running out of memory.
 
-The fix: I capped the resolution, reduced the number of image buffers the camera holds, and stopped reserving extra raw memory. If the camera still cannot start a high resolution mode, the program falls back safely instead of crashing.
+The fix: Limiting the resolution at which the camera works. Fewer buffers of frames of video to hold. Raw memory to reserve for the python program to run. A message is set up in the program so that if the camera fails to start in high resolution mode,program falls back to a below resolution mode instead of crashing.
 
-### Small bugs along the way
+###Small bugs along the way
 
-The video feed once showed everyone with blue faces. Red and blue were swapped in the color conversion. One line fixed it.
+The video feed showed everyone with blue faces. It was a quirk of the color conversion. By swapping blue and red,it was fixed.
 
-### Quality of life features
+###Quality of life features
 
-Once the core worked, I added tools to make it usable. Scan zones point recognition at chosen parts of the frame. Auto zoom frames the nearest face on its own. A reload key clears everything and starts fresh when a box gets stuck. A screenshot key saves exactly what is on the screen, boxes and all. I am also adding offline voice announcements that speak a person's name out loud when the system recognizes them above 60 percent confidence.
+Once the basic model was working,I added a scan zone to focus the recognition on a portion of the screen. Auto zoom to focus on the face of the nearest person. A reload key to clear the screen. A screenshot key to save the screen shot. Also working in development is an offline voice module to announce a recognized person’s name when sufficient confidence above 60 percent.
 
-### What I learned
+###What I learned
 
-Most of my time went to the gap between a model working in theory and working in real time on cheap hardware. The recognition itself was one piece. Making the box smooth, accurate, and centered while a slow model ran in the background was the harder and more interesting half.
+In making this project,I learned that most of my time was spent closing the gap between a model that works in theory and the model that works in real time with cheap hardware. While making the recognition model,it was mostly challenging to make the box of the detected face smooth,accurate,and centered around my face at the same time as the slower model.
 
 ---
 
