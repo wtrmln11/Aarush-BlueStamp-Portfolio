@@ -60,83 +60,83 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 ---
 
-###Challenges and Struggles
+# Challenges and Struggles
 
 This project changed a lot from the first version to the last. Below are the real problems I ran into and how I solved each one.
 
-###Getting faces at a distance
+## Getting faces at a distance
 
 The problem: The camera catches few pixels of a face when it is at a distance. The model needs to see enough of a person to recognize who they are. The face at a distance of 3 feet was too small for the model to recognize.
 
-The fix: The camera has a 64 megapixel sensor. There’s more detail in the sensor than the screen. The image can be stretched during digitizing,because more pixels=more detail. However,making an image bigger loses no detail, so I can cut into the sensor to capture a face and its hundreds of pixels. This digital zoom works with the =and - keys,on the keyboard. I made it also automatic.
+The fix: The camera has a 64 megapixel sensor. There’s more detail in the sensor than the screen. The image can be stretched during digitizing, because more pixels=more detail. However, making an image bigger loses no detail, so I can cut into the sensor to capture a face and its hundreds of pixels. This digital zoom works with the =and - keys, on the keyboard. I made it also automatic.
 
-###Blurry and corrupted training photos
+## Blurry and corrupted training photos
 
-The problem: When the camera was set up,only when someone was in front of the camera did it capture sharp photos.Some of my saved photos became corrupted without any warning. This meant deleting many of my photos.
+The problem: When the camera was set up, only when someone was in front of the camera did it capture sharp photos. Some of my saved photos became corrupted without any warning. This meant deleting many of my photos.
 
 The fix: Adding autofocus to the camera means that the camera will focus when every photo is taken. It will also cool down to give some time to ensure that the autofocus will not be taken twice in a row. Saving the photos at high resolution with a quality set at the camera ensured that no more photos would be corrupted.
 
-###Not enough training data
+## Not enough training data
 
-The problem: My data set had only 200 photos of 4 people. The model worked well for people at close range,but failed at 3 feet away.
+The problem: My data set had only 200 photos of 4 people. The model worked well for people at close range, but failed at 3 feet away.
 
-The fix: I take more photos of myself from many angles and distances. I used image augmentation to take each of my photos and make a set of 6 photos of myself from flipped,brighter,darker,and rotated images. This teaches my model to see more lighting angles, without taking more of my photos.
+The fix: I take more photos of myself from many angles and distances. I used image augmentation to take each of my photos and make a set of 6 photos of myself from flipped, brighter, darker, and rotated images. This teaches my model to see more lighting angles, without taking more of my photos.
 
-###Switching the recognition engine
+## Switching the recognition engine
 
-The first recognition engine used was the face_recognition library together with MediaPipe. It worked well for people up-close,but would fail at a distance or high accuracy.
+The first recognition engine used was the face_recognition library together with MediaPipe. It worked well for people up-close, but would fail at a distance or high accuracy.
 
-I changed to InsightFace,which is a stronger and more modern recognition engine together with the buffalo_l model. This model converts a face to a list of 512 numbers called an embedding. These numbers act like a fingerprint. By comparing the embedding to their saved embeddings,my program can recognize which face is which.
+I changed to InsightFace, which is a stronger and more modern recognition engine together with the buffalo_l model. This model converts a face to a list of 512 numbers called an embedding. These numbers act like a fingerprint. By comparing the embedding to their saved embeddings, my program can recognize which face is which.
 
-###The speed problem
+## The speed problem
 
-The problem: The new insightface model is slow on the Raspberry Pi. It takes close to a second to recognize a person. However,the model often freezes when drawing a box around the recognized face. It freezes again after the name is found.
+The problem: The new insightface model is slow on the Raspberry Pi. It takes close to a second to recognize a person. However, the model often freezes when drawing a box around the recognized face. It freezes again after the name is found.
 
 The fix: Splitting the model into two jobs can run at the same time. The first job is the slow job to recognize the face. The second job is the fast job to run each frame of video and follow the face using a small image of face called a template. The template is used to follow the face and box it in every frame.
 
-###Boxes stuck on the wall
+## Boxes stuck on the wall
 
-The problem: The box with my name was stuck on the wall behind me. The model was tracking my face,but it was moving to the wall and stuck to the wall.
+The problem: The box with my name was stuck on the wall behind me. The model was tracking my face, but it was moving to the wall and stuck to the wall.
 
-The fix: Adding three guards to the model will make it recognize wrong tracking. The tracking model checks to see if the face has detail or not. A wall has no detail. If a box is not confirmed by the detector,it is automatically removed. The detector also raises the bar for confidence to avoid marking shadows onto the wall as a face.
+The fix: Adding three guards to the model will make it recognize wrong tracking. The tracking model checks to see if the face has detail or not. A wall has no detail. If a box is not confirmed by the detector, it is automatically removed. The detector also raises the bar for confidence to avoid marking shadows onto the wall as a face.
 
-###The box showing where I used to be
+## The box showing where I used to be
 
-The problem: Since the model is slow,the box illustrating my face has a lag of a second. If I move my head,the box follows me,but stuck to where I was a second earlier.
+The problem: Since the model is slow, the box illustrating my face has a lag of a second. If I move my head, the box follows me, but stuck to where I was a second earlier.
 
-The insight: The detector model is slow,so it should not be in charge of the position of the box. The fast tracking model owns the position of the box,but the slow detector model only supplies the name of the detected face and corrects the size of the box.
+The insight: The detector model is slow, so it should not be in charge of the position of the box. The fast tracking model owns the position of the box, but the slow detector model only supplies the name of the detected face and corrects the size of the box.
 
-###The box only covering part of my face, or sitting off-center
+## The box only covering part of my face, or sitting off-center
 
 The problem: The box is too small or moves to the side of my face.
 
-The fix: The box now expands to cover my face or my head. If I move away or near the camera,the box adjusts to cover me. The box is made to automatically re-center my face. The box is also widened to show my whole head rather than only half my face. The box can now grow or shrink to fit my face.
+The fix: The box now expands to cover my face or my head. If I move away or near the camera, the box adjusts to cover me. The box is made to automatically re-center my face. The box is also widened to show my whole head rather than only half my face. The box can now grow or shrink to fit my face.
 
-###Losing the box while moving
+## Losing the box while moving
 
-The problem: If I move quicker than normal,the box is lost.
+The problem: If I move quicker than normal, the box is lost.
 
 The fix: The tracking model is made more forgiving of motion. A motion predictor forecasts where my face will be on the next frame of video. This helps the tracking model to stay on my face even if I move quicker than normal.
 
-###Running out of memory
+## Running out of memory
 
-The problem: When running at full resolution,the Raspberry Pi limits running out of memory.
+The problem: When running at full resolution, the Raspberry Pi limits running out of memory.
 
-The fix: Limiting the resolution at which the camera works. Fewer buffers of frames of video to hold. Raw memory to reserve for the python program to run. A message is set up in the program so that if the camera fails to start in high resolution mode,program falls back to a below resolution mode instead of crashing.
+The fix: Limiting the resolution at which the camera works. Fewer buffers of frames of video to hold. Raw memory to reserve for the python program to run. A message is set up in the program so that if the camera fails to start in high resolution mode, program falls back to a below resolution mode instead of crashing.
 
-###Small bugs along the way
+## Small bugs along the way
 
-The video feed showed everyone with blue faces. It was a quirk of the color conversion. By swapping blue and red,it was fixed.
+The video feed showed everyone with blue faces. It was a quirk of the color conversion. By swapping blue and red, it was fixed.
 
-###Quality of life features
+## Quality of life features
 
-Once the basic model was working,I added a scan zone to focus the recognition on a portion of the screen. Auto zoom to focus on the face of the nearest person. A reload key to clear the screen. A screenshot key to save the screen shot. Also working in development is an offline voice module to announce a recognized person’s name when sufficient confidence above 60 percent.
+Once the basic model was working, I added a scan zone to focus the recognition on a portion of the screen. Auto zoom to focus on the face of the nearest person. A reload key to clear the screen. A screenshot key to save the screen shot. Also working in development is an offline voice module to announce a recognized person’s name when sufficient confidence above 60 percent.
 
-###What I learned
+## What I learned
 
-In making this project,I learned that most of my time was spent closing the gap between a model that works in theory and the model that works in real time with cheap hardware. While making the recognition model,it was mostly challenging to make the box of the detected face smooth,accurate,and centered around my face at the same time as the slower model.
-
----
+In making this project, I learned that most of my time was spent closing the gap between a model that works in theory and the model that works in real time with cheap hardware. While making the recognition model, it was mostly challenging to make the box of the detected face smooth, accurate, and centered around my face at the same time as the slower model.
+ 
+---  
 
 ## Schematics
 
