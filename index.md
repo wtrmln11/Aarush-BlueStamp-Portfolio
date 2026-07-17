@@ -140,7 +140,7 @@ In making this project, I learned that most of my time was spent closing the gap
 
 ## Schematics
 
-![Schematics](Schematic.png)
+
 
 ---
 
