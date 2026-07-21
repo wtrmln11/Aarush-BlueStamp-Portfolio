@@ -141,7 +141,7 @@ In making this project, I learned that most of my time was spent closing the gap
 ## Schematics
 
 <div style="display:flex; flex-wrap:wrap; gap:10px;">
-  <img src="Case1.png" alt="Schematic 1" width="300" height="300">
+  <img src="Case1.png" alt="Schematic 1" width="300" height="400">
   <img src="case2.png" alt="Schematic 2" width="300" height="400">
   <img src="case3.png" alt="Schematic 3" width="300" height="400">
   <img src="case4.png" alt="Schematic 4" width="300" height="400">
