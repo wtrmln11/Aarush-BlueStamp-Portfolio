@@ -28,9 +28,9 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xFbNuY9iE_g?si=Cp3FTndi-fisdUzk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
--Trained the model on images in the dataset using Python, allowing the live feed to show people’s names
+-Trained the model on images in the dataset using Python, allowing the live feed to show people's names
 
--Surprised by how much data the model needs, only 200 pictures of 4 people in the dataset wasn’t enough to allow the model to recognize people past 3 feet
+-Surprised by how much data the model needs, only 200 pictures of 4 people in the dataset wasn't enough to allow the model to recognize people past 3 feet
 
 -Initially the live feed was extremely zoomed in, so I adjusted the resolution to fit the monitor and then added more people to the dataset to improve the accuracy of the model
 
@@ -59,7 +59,6 @@ This project uses a Raspberry Pi to build a real-time facial recognition system 
 -Built retro arcade device by connecting a battery to the metal contacts on the back of the device, soldering the side charging port and buttons (movement and reset), then finally putting it all together in the acrylic case with the screws.
 
 ---
-
 # Challenges and Struggles
 
 This project changed a lot from the first version to the last. Below are the real problems I ran into and how I solved each one.
@@ -68,13 +67,13 @@ This project changed a lot from the first version to the last. Below are the rea
 
 The problem: The camera catches few pixels of a face when it is at a distance. The model needs to see enough of a person to recognize who they are. The face at a distance of 3 feet was too small for the model to recognize.
 
-The fix: The camera has a 64 megapixel sensor. There’s more detail in the sensor than the screen. The image can be stretched during digitizing, because more pixels=more detail. However, making an image bigger loses no detail, so I can cut into the sensor to capture a face and its hundreds of pixels. This digital zoom works with the =and - keys, on the keyboard. I made it also automatic.
+The fix: The camera has a 64 megapixel sensor. There's more detail in the sensor than the screen. Cutting into the sensor captures a face and its hundreds of pixels, instead of stretching a small image and losing detail. This digital zoom works with the = and - keys on the keyboard. I made it automatic too, and later added manual pan (T/F/G/B) so I can look around the frame without moving the camera.
 
 ## Blurry and corrupted training photos
 
 The problem: When the camera was set up, only when someone was in front of the camera did it capture sharp photos. Some of my saved photos became corrupted without any warning. This meant deleting many of my photos.
 
-The fix: Adding autofocus to the camera means that the camera will focus when every photo is taken. It will also cool down to give some time to ensure that the autofocus will not be taken twice in a row. Saving the photos at high resolution with a quality set at the camera ensured that no more photos would be corrupted.
+The fix: Adding autofocus to the camera means that the camera will focus when every photo is taken. A cooldown ensures the autofocus is not triggered twice in a row. Saving the photos at high resolution with a quality set at the camera ensured that no more photos would be corrupted.
 
 ## Not enough training data
 
@@ -90,53 +89,55 @@ I changed to InsightFace, which is a stronger and more modern recognition engine
 
 ## The speed problem
 
-The problem: The new insightface model is slow on the Raspberry Pi. It takes close to a second to recognize a person. However, the model often freezes when drawing a box around the recognized face. It freezes again after the name is found.
+The problem: The new InsightFace model is slow on the Raspberry Pi. It takes close to a second to recognize a person. The box freezes while the slow model runs.
 
-The fix: Splitting the model into two jobs can run at the same time. The first job is the slow job to recognize the face. The second job is the fast job to run each frame of video and follow the face using a small image of face called a template. The template is used to follow the face and box it in every frame.
+The fix: I split the work across three threads that run at the same time. A detection thread finds faces fast and publishes boxes. A separate embedding thread runs the slow recognition and fills in names a moment later. The main loop follows each face every frame with a fast template tracker. Splitting detection from embedding made the box refresh about three times faster, because the detector no longer waits on the slow recognition step.
 
 ## Boxes stuck on the wall
 
-The problem: The box with my name was stuck on the wall behind me. The model was tracking my face, but it was moving to the wall and stuck to the wall.
+The problem: The box with my name was stuck on the wall behind me. The tracker had drifted off my face onto the wall.
 
-The fix: Adding three guards to the model will make it recognize wrong tracking. The tracking model checks to see if the face has detail or not. A wall has no detail. If a box is not confirmed by the detector, it is automatically removed. The detector also raises the bar for confidence to avoid marking shadows onto the wall as a face.
+The fix: Three guards. The tracker checks that a patch has real texture, and a wall has none. Any box the detector stops confirming is removed on a timer, so a drifted box cannot live forever. The detector also raises its confidence bar so shadows on the wall are not treated as faces.
 
 ## The box showing where I used to be
 
-The problem: Since the model is slow, the box illustrating my face has a lag of a second. If I move my head, the box follows me, but stuck to where I was a second earlier.
+The problem: The detector is about a second slow, so its box shows where I was a second ago. When I move, the box lags behind.
 
-The insight: The detector model is slow, so it should not be in charge of the position of the box. The fast tracking model owns the position of the box, but the slow detector model only supplies the name of the detected face and corrects the size of the box.
+The fix: The fast tracker owns the box position in real time. The slow detector only supplies the name and corrects the box size. On top of that, the detection is projected forward by my measured speed to where I am now, so the box snaps onto my current position instead of my old one.
 
-## The box only covering part of my face, or sitting off-center
+## Losing the box while moving, and duplicate boxes
 
-The problem: The box is too small or moves to the side of my face.
+The problem: Moving quickly lost the box, and sometimes one person got a second box copied elsewhere on the screen.
 
-The fix: The box now expands to cover my face or my head. If I move away or near the camera, the box adjusts to cover me. The box is made to automatically re-center my face. The box is also widened to show my whole head rather than only half my face. The box can now grow or shrink to fit my face.
+The fix: The tracker coasts through brief tracking failures instead of freezing, gliding at my last known speed for a short distance so a fast move or a quick head turn does not drop the box. A hard distance cap stops a lost box from flying across the screen, and duplicate suppression removes any second box that carries the same name once it goes stale. Two real people are always kept separate.
 
-## Losing the box while moving
+## Distance, height, speed, and age
 
-The problem: If I move quicker than normal, the box is lost.
-
-The fix: The tracking model is made more forgiving of motion. A motion predictor forecasts where my face will be on the next frame of video. This helps the tracking model to stay on my face even if I move quicker than normal.
+Once tracking was solid, I added measurements from the face box. Distance comes from apparent face size, calibrated by standing at one meter and pressing D. Height comes from where the head sits in the frame relative to the camera's optical axis, calibrated with K. Speed uses the face as an on-screen ruler. Age and gender come from the model's built-in estimator. Getting distance and height accurate at zoom was the hardest part, because zooming and panning move the optical axis off the center of the frame, which had to be accounted for.
 
 ## Running out of memory
 
-The problem: When running at full resolution, the Raspberry Pi limits running out of memory.
+The problem: When running at full resolution, the Raspberry Pi runs out of memory.
 
-The fix: Limiting the resolution at which the camera works. Fewer buffers of frames of video to hold. Raw memory to reserve for the python program to run. A message is set up in the program so that if the camera fails to start in high resolution mode, program falls back to a below resolution mode instead of crashing.
+The fix: Cap the full-mode resolution request, hold fewer frame buffers, and allocate no raw buffers. If the camera fails to start in high resolution mode, the program falls back to a lower mode instead of crashing.
 
 ## Small bugs along the way
 
-The video feed showed everyone with blue faces. It was a quirk of the color conversion. By swapping blue and red, it was fixed.
+The video feed showed everyone with blue faces, a quirk of the color conversion, fixed by swapping blue and red. Age readings were wildly off until I fed that model the color order it actually expects, separate from the recognition path.
+
+## Portable and headless
+
+I made the system run with no monitor, powered by a power bank, and streamed the feed to a phone or laptop browser over WiFi. The Pi can join a phone hotspot so it works anywhere, and it auto-detects when there is no display and streams only.
 
 ## Quality of life features
 
-Once the basic model was working, I added a scan zone to focus the recognition on a portion of the screen. Auto zoom to focus on the face of the nearest person. A reload key to clear the screen. A screenshot key to save the screen shot. Also working in development is an offline voice module to announce a recognized person’s name when sufficient confidence above 60 percent.
+Scan zones to focus recognition on part of the screen. Auto zoom to follow the nearest face. A reload key to clear the screen. A screenshot key. An offline voice module that announces a recognized name above 60 percent confidence.
 
 ## What I learned
 
-In making this project, I learned that most of my time was spent closing the gap between a model that works in theory and the model that works in real time with cheap hardware. While making the recognition model, it was mostly challenging to make the box of the detected face smooth, accurate, and centered around my face at the same time as the slower model.
- 
----  
+Most of my time was spent closing the gap between a model that works in theory and one that works in real time on cheap hardware. The hardest part was making the box smooth, accurate, and centered on my face at the same time as the slower recognition model ran behind it.
+
+---
 
 ## Schematics
 
@@ -155,19 +156,50 @@ In making this project, I learned that most of my time was spent closing the gap
 
 ## Code
 
+The full source for each script is collapsed to keep this page short. Click any bar below to expand the code.
 ### Face Recognition (face_rec-picam.py)
-The main script. Runs continuous face recognition on the Pi Camera feed with InsightFace, a fast template tracker for smooth boxes, digital zoom, scan zones, live confidence scoring, a reload key, a screenshot key, and offline voice announcements. Controls: `=` zoom in, `-` zoom out, `A` auto zoom, `H` sensor mode, `E` encoding set, `R` reload, `L` screenshot, `S` zones, `C` clear zones, `Q` quit.
+
+The main script. Runs continuous face recognition on the Pi Camera feed with InsightFace, a three-thread pipeline (detect / embed / track) for smooth boxes, digital zoom with manual pan, scan zones, live confidence scoring, distance / height / speed / age readouts, offline voice announcements, and browser streaming for headless use.
+
+Controls: `=` zoom in, `-` zoom out, `A` auto zoom, `T/F/G/B` pan, `V` re-center, `H` sensor mode, `E` encoding set, `D` calibrate distance, `K` calibrate camera height, `I` info overlay, `R` reload, `L` screenshot, `S` zones, `C` clear zones, `Q` quit.
+
+<details>
+<summary><b>Click to view face_rec-picam.py</b></summary>
 
 ```python
+# ---------------------------------------------------------------------
+#  THREAD BUDGET  (must run BEFORE onnxruntime / OpenCV are imported)
+#
+#  The Pi 4 has 4 cores. Left alone, ONNX gives the detector 4 threads,
+#  the embedder another 4, and OpenCV takes 4 more in the display loop.
+#  That is 12 threads fighting over 4 cores, so the display loop gets
+#  starved. The tracker runs in that loop, which is why the box stutters
+#  and drops lock exactly when recognition is busy.
+#
+#  Capping each pool leaves a core free for the display loop. Detection
+#  barely slows, because it was never really getting 4 cores anyway.
+#  Raise these only if you move to a Pi 5.
+# ---------------------------------------------------------------------
+import os
+ONNX_THREADS = 2
+os.environ.setdefault("OMP_NUM_THREADS", str(ONNX_THREADS))
+os.environ.setdefault("OPENBLAS_NUM_THREADS", str(ONNX_THREADS))
+os.environ.setdefault("MKL_NUM_THREADS", str(ONNX_THREADS))
+
 import cv2
+cv2.setNumThreads(2)            # leave headroom for the ONNX workers
+
 import numpy as np
 from picamera2 import Picamera2
 from libcamera import controls, Transform
 import time
 import pickle
-import os
 import subprocess
-from queue import Queue, Empty
+import json
+from queue import Queue, Full, Empty
+import socket
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from urllib.parse import urlparse, parse_qs
 from collections import deque, Counter
 from insightface.app import FaceAnalysis
 from insightface.app.common import Face
@@ -263,7 +295,13 @@ MAIN_W, MAIN_H = 1280, 720      # recognition stream. 720p keeps the
                                 # this stream. Raise to 1600x900 only
                                 # if you need more far-face detection
                                 # and can spare the frame rate.
-LORES_W, LORES_H = 1024, 576    # display source stream
+LORES_W, LORES_H = 1024, 576    # display source stream. MUST keep the
+                                # same aspect ratio as MAIN (16:9), or
+                                # the ISP may letterbox/crop instead of
+                                # scaling, and every display->main
+                                # conversion silently gains an unknown
+                                # factor. The tiny resize to DISPLAY_H is
+                                # worth the certainty.
 DISPLAY_W, DISPLAY_H = 1024, 600
 
 MODEL_PACK = "buffalo_l"        # "buffalo_s" is 3-5x faster on CPU but
@@ -283,6 +321,13 @@ MIN_FACE_EMBED_PX = 36          # skip embedding on faces smaller than
                                 # this (main-frame pixels)
 CACHE_SEEN_TTL = 3.0            # drop identity cache entries unseen
                                 # this long
+CACHE_MATCH_MIN_PX = 320        # how far a face may move between
+                                # detection passes and still be
+                                # recognised as the same person. Covers a
+                                # brisk walk at typical detection rates.
+CACHE_MATCH_FACE_FRAC = 3.0     # or this many face-heights, whichever is
+                                # larger (close-up faces move further in
+                                # pixels for the same real speed)
 
 ZONE_UPSCALE_MIN = 380          # zone crops with min side below this
                                 # get a 2x upscale before detection
@@ -315,33 +360,97 @@ ZONE_NAMES = ["ZONE A", "ZONE B", "ZONE C"]
 TRACK_SEARCH_MARGIN = 120       # px search radius per frame, plus the
                                 # motion predictor below, so fast head
                                 # movement stays in range
-MATCH_THRESHOLD = 0.34          # min correlation to MOVE the box. Kept
-                                # low (like the early versions) so the
-                                # box follows through motion blur. On a
-                                # miss the box holds; misses cull ghosts
-PREDICT_GAIN = 0.7              # how much last-frame velocity shifts
-                                # the search window ahead of the face
+MATCH_THRESHOLD = 0.30          # min correlation to MOVE the box. Kept
+                                # low so the box follows through motion
+                                # blur. Safe to be this loose because
+                                # duplicate suppression and lag-corrected
+                                # snapping now clean up anything wrong
+MATCH_THRESHOLD_COAST = 0.20    # easier bar to REGAIN lock while
+                                # coasting. Already committed to that
+                                # face, so accept a weaker match rather
+                                # than stall
+PREDICT_GAIN = 0.9              # how much measured velocity shifts the
+                                # search window ahead of the face
+VEL_SMOOTH = 0.45               # EMA on velocity (px/sec)
+COAST_MAX_FRAMES = 22           # frames to dead-reckon through a failed
+                                # match before giving up. At ~15 fps this
+                                # is ~1.5 s of gliding, which carries the
+                                # box through blur or a brief head turn.
+COAST_MAX_PX = 160              # floor for how far a box may coast in
+                                # total. The real cap scales with face
+                                # size (COAST_MAX_FACE_FRAC), because a
+                                # close-up face legitimately crosses more
+                                # pixels for the same real movement.
+                                # Some cap is essential: without one, a
+                                # box that lost lock at speed sails clear
+                                # across the screen still wearing your
+                                # name, which reads as a duplicate.
+COAST_MAX_FACE_FRAC = 2.5       # or this many face-widths, whichever is
+                                # larger
+COAST_VEL_DECAY = 0.80          # bleed velocity off per coasted frame.
+                                # A coasting box has no evidence you are
+                                # still moving, so it should ease to a
+                                # stop rather than cruise on forever.
+# Template refresh adapts to motion. Standing still, refresh slowly so
+# the template cannot walk off your face (anti-drift). Moving, refresh
+# fast so the template stays blurred like your face is (anti-stutter).
+# One blend rate cannot do both, which is what broke tracking before.
+TEMPLATE_BLEND_STILL = 0.15
+TEMPLATE_BLEND_MOVING = 0.55
+BLEND_SPEED_FULL = 350.0        # px/sec at which the moving blend is
+                                # fully applied
 MIN_TEMPLATE_STD = 12.0         # tracked patch must have texture, so
                                 # templates never latch onto flat walls
 RESEED_SEARCH_MARGIN = 300      # a LAGGED detection still associates
                                 # with your moved box instead of
                                 # spawning a phantom track behind you
-SPAWN_MIN_DIST = 150            # a new track spawns only when a
-                                # detection is this far from every
-                                # existing track (kills phantom dupes)
-DRIFT_CORRECT_DIST = 140        # if a detection lands within this of
-                                # the tracked box, re-center the box on
-                                # the detected face (kills the slow
-                                # template drift that pulls the box off
-                                # your face). Farther than this, the
-                                # detection is treated as stale and does
-                                # NOT move the box (no yank while moving)
-DRIFT_CORRECT_BLEND = 0.6       # firm re-center toward the true face
-                                # center each detection pass
+SPAWN_MIN_DIST = 50             # floor for the spawn guard, in px. The
+                                # real guard scales with face size (see
+                                # spawn_guard_px), because a fixed guard
+                                # blocks two real people standing close
+                                # together at distance from each getting
+                                # their own box
+SPAWN_FACE_FRAC = 0.9           # spawn guard = this * detected face height
+# Duplicate suppression. Two boxes on one person happen when a template
+# drifts onto a shoulder or hair and holds while the detector spawns a
+# fresh track on the real face. This is NMS for tracks: overlapping or
+# co-located tracks collapse to the one the detector confirmed most
+# recently.
+TRACK_MERGE_IOU = 0.35          # boxes overlapping more than this merge
+TRACK_MERGE_CENTER_FRAC = 0.55  # or centers closer than this * face size
+# Same-name duplicates are only removed when the copy is STALE, meaning
+# the detector is not currently confirming it. Two live people who get
+# briefly misidentified as each other must both keep their boxes.
+SAME_NAME_STALE_SEC = 1.2
+SAME_NAME_STALE_MISSES = 2
+TRACK_UNCONFIRMED_SEC = 6.0     # hard time limit since the detector last
+                                # confirmed a track. This is the real
+                                # backstop against ghosts. Raised because
+                                # a box vanishing for a few seconds and
+                                # coming back is worse than a box that
+                                # lingers slightly too long, and the
+                                # duplicate suppressor removes wrong ones
+                                # within a frame anyway.
+# Lag compensation. The detector reports where a face WAS at capture
+# time, typically ~1s ago on a Pi. Rather than blend partway toward that
+# stale position (which leaves a permanent offset, so the box settles
+# onto a neck or shoulder), project the detection forward by the
+# tracker's measured velocity and snap the box onto it. Correct position
+# AND no yank, instead of a compromise between the two.
+LAG_COMPENSATE = True
+LAG_MAX_SEC = 1.5               # ignore absurd lags (worker hiccup)
+LAG_MAX_SHIFT_PX = 400          # cap the projection, so a wild velocity
+                                # estimate cannot fling the box
+SNAP_BLEND = 0.9                # how hard to snap onto the (projected)
+                                # detection. High on purpose: detection
+                                # is ground truth for position once the
+                                # lag is removed
 SIZE_BLEND = 0.35               # how fast the box grows/shrinks toward
                                 # the detected face size (0..1 per pass)
-TRACK_MAX_MISSES = 6            # detector passes with no matching
-                                # detection before a track is removed
+TRACK_MAX_MISSES = 12           # detector passes with no matching
+                                # detection before a track is removed.
+                                # TRACK_UNCONFIRMED_SEC is the real
+                                # backstop, so this can be generous
 IDENTITY_STALE_SEC = 5.0
 NAME_VOTE_LEN = 5
 DET_CONFIDENCE = 0.60           # SCRFD score floor. Default 0.5 lets
@@ -358,7 +467,188 @@ BOX_EXPAND_BOTTOM = 0.20        # downward growth (chin, jaw)
 # Auto framing. Faces smaller than this (main-frame px) do not steer
 # the auto zoom or pan, so a one-pass false detection at the frame
 # edge no longer yanks the camera.
+# =====================================================================
+#  MANUAL PAN  ("look around" without moving the camera)
+#
+#  The sensor is far larger than the view, so at any zoom above 1x there
+#  is real image sitting outside the frame. These controls slide the
+#  crop around inside it, which looks exactly like panning a camera on a
+#  tripod, except nothing physically moves.
+#
+#    T F G B           pan up / left / right / down   (letter keys, so
+#                      no numpad or working arrows needed)
+#    V                 re-centre the view
+#    Arrow keys        same, if your OpenCV build passes them through
+#    8 4 6 2 / 5       same again, numpad-style
+#
+#  T F G B sits as a diamond on the keyboard:  F and G are side by side
+#  for left/right, T is above them, B below.
+#
+#  Panning switches auto-zoom OFF, otherwise auto-pan fights you for the
+#  wheel. Press A to hand control back.
+#
+#  NOTE: at 1.0x zoom the crop already covers the whole sensor, so there
+#  is nowhere to pan to. Zoom in first, then look around.
+#
+#  If a direction feels backwards on your camera, flip the matching
+#  invert below. The camera Transform (HFLIP/VFLIP) can reverse these
+#  depending on how the module is mounted.
+# =====================================================================
+PAN_STEP = 0.12                 # fraction of the current VIEW to move
+                                # per keypress. Independent of zoom, so
+                                # a press always shifts the picture by
+                                # the same amount on screen.
+PAN_INVERT_X = False            # set True if left/right feel swapped
+PAN_INVERT_Y = False            # set True if up/down feel swapped
+
+# Arrow key codes differ by OpenCV backend, so accept the known sets.
+# Deliberately NOT including the legacy 81-84 codes: those collide with
+# uppercase Q, R, S and T, which are already bound.
+PAN_KEYS_UP = (65362, 16777235, 2490368, 63232)
+PAN_KEYS_DOWN = (65364, 16777237, 2621440, 63233)
+PAN_KEYS_LEFT = (65361, 16777234, 2424832, 63234)
+PAN_KEYS_RIGHT = (65363, 16777236, 2555904, 63235)
+
 AUTO_MIN_FACE_PX = 30
+
+# =====================================================================
+#  PORTABLE / BROWSER STREAM  (full quality, no throttling for now)
+#
+#  Runs the Pi with no monitor, powered by a battery, viewed from a
+#  laptop or phone browser. Standard library only, so nothing to pip
+#  install in the field.
+#
+#  Testing full quality first on purpose. If the feed lags or the Pi
+#  throttles, drop STREAM_MAX_FPS and STREAM_QUALITY, or gate the frame
+#  rate on whether a face is present. Not doing any of that yet.
+#
+#  ---- ONE-TIME: join your phone hotspot ----
+#    Phone hotspot ON, then on the Pi (while on home WiFi or a monitor):
+#      sudo nmcli device wifi connect "HOTSPOT_NAME" password "PASSWORD"
+#    It reconnects automatically after that. Home WiFi still works too;
+#    the Pi joins whichever is in range.
+#
+#  ---- USING IT ----
+#    1. Hotspot ON, power the Pi, wait ~30 s.
+#    2. Find the Pi's IP: phone hotspot client list, or `hostname -I`.
+#    3. Browse to  http://<pi-ip>:8000  from any device on the network.
+#    4. Run under tmux so it survives an SSH disconnect:
+#         tmux
+#         python3 face_recognition_v2.py
+#       Detach with Ctrl-B then D. Reattach with `tmux attach`.
+#
+#  Headless is auto-detected: no DISPLAY means no monitor, so the
+#  OpenCV window is skipped. Force it with HEADLESS below.
+#
+#  ---- POWER (Pi 4) ----
+#  Needs 5V/3A. A weaker bank browns out under load and reboots at
+#  random, which looks like a crash. Check:  vcgencmd get_throttled
+#  (0x0 is healthy). Fit a heatsink; a throttled Pi tanks FPS and
+#  brings back the tracking problems.
+# =====================================================================
+STREAM_ENABLED = True
+STREAM_PORT = 8000
+STREAM_QUALITY = 90             # JPEG quality 1-100. High on purpose for
+                                # this first test. Lower it if the feed
+                                # or recognition struggle.
+STREAM_MAX_FPS = 30             # no real throttle for now; the display
+                                # loop rarely exceeds this on a Pi 4
+HEADLESS = None                 # None = auto-detect from DISPLAY.
+                                # True forces no window, False forces one
+
+
+# =====================================================================
+#  DISTANCE ESTIMATION
+#
+#  A face that covers more pixels is closer. With the pinhole model,
+#  distance = DIST_C / apparent_size, where apparent_size is the face
+#  box size normalized for the digital zoom. DIST_C bundles the focal
+#  length and real face size into one number.
+#
+#  Two people are rarely the same face size, so the accurate path is a
+#  one-time calibration: stand at DIST_CALIB_CM from the camera with
+#  your face the largest in frame and press D. That reading is saved to
+#  DIST_CALIB_FILE and reused on every future run. Until you calibrate,
+#  a rough default is used and the readout is marked with a ~.
+#
+#  Caveats: tilting your head up or down changes the box size a little,
+#  so expect a few percent wobble. Calibrate with the face you care
+#  about most for best accuracy.
+# =====================================================================
+DIST_ENABLED = True
+DIST_UNITS = "ft"               # "ft" or "m"
+DIST_CALIB_CM = 100.0           # the known distance you stand at when
+                                # you press D to calibrate
+DIST_CALIB_FILE = "dist_calib.json"
+DIST_CALIB_VERSION = 3          # bump whenever the units of DIST_C
+                                # change, so a stale file is ignored
+                                # instead of silently giving wrong
+                                # numbers. v3 = display pixels (the
+                                # original, self-consistent units).
+DIST_C_DEFAULT = 8000.0         # rough uncalibrated constant
+DIST_SMOOTH = 0.3               # EMA on the readout so it does not jitter
+
+# =====================================================================
+#  SPEED / HEIGHT / AGE
+#
+#  All three are derived FROM the face box, so they only exist while a
+#  face is detected. None of them work on a person facing away.
+#
+#  Speed uses the face itself as an on-screen ruler: a face is roughly
+#  FACE_REAL_CM across, so cm-per-pixel = FACE_REAL_CM / face_px. Zoom
+#  cancels out because both terms are measured on the same image. The
+#  readout combines lateral motion (across frame) with radial motion
+#  (toward or away, from the change in distance).
+#
+#  Height uses the pinhole projection of the head-top against a LEVEL
+#  camera at a known mount height:
+#      Y = CAM_HEIGHT_CM + dy_px * distance / (zoom * focal_px)
+#  Accuracy depends on CAM_HEIGHT_CM being right and the camera being
+#  level. Tilt the camera and the number is wrong. Measure your mount
+#  height and set it below. Expect a few inches of error at best.
+# =====================================================================
+FACE_REAL_CM = 16.5             # nominal face size, sqrt(width*height)
+CAM_HEIGHT_CM = 100.0           # camera lens height above the floor.
+                                # Do not guess. Either measure floor to
+                                # LENS CENTER, or stand in view and
+                                # press K to solve for it (see below).
+MY_HEIGHT_CM = 178.0            # YOUR height, for the K calibration.
+                                # 178 cm = 5 ft 10 in. Set this to your
+                                # real height before pressing K.
+SPEED_ENABLED = True
+SPEED_SMOOTH = 0.25             # EMA on the speed readout
+SPEED_MIN_SHOW = 0.3            # ft/s below this reads as "still"
+HEIGHT_ENABLED = True
+HEIGHT_SMOOTH = 0.15            # heavier smoothing, height should be
+                                # stable for a given person
+AGE_ENABLED = True              # buffalo_l ships a genderage model
+AGE_MIN_FACE_PX = 70            # skip age on faces smaller than this.
+                                # genderage needs real detail; a 36px
+                                # face gives a number, but a meaningless
+                                # one. Recognition still runs on smaller
+                                # faces, this only gates age/gender.
+AGE_VOTE_LEN = 9                # age is noisy frame to frame, so report
+                                # the median of the last N readings and
+                                # the majority gender
+INFO_MODE_DEFAULT = "full"      # basic / full, toggled with I.
+                                # "full" shows the speed / height /
+                                # age line under each box, the optical
+                                # axis, and the detection lag readout.
+                                # "basic" hides all of that.
+
+# Name freshness. A track keeps its voted name after the detector stops
+# confirming it, which is what makes the label survive a head turn. The
+# stored confidence goes stale though, so past this many seconds the box
+# greys out and shows "?" instead of a percentage that is no longer
+# true. The track itself lives until TRACK_UNCONFIRMED_SEC.
+# This is memory of who that box was, NOT recognition of a turned face.
+# Real back-turned ID needs a person re-identification model, which this
+# project does not have.
+NAME_FRESH_SEC = 6.0            # show "?" only when the name really is
+                                # stale. MUST stay well above
+                                # REVERIFY_SEC (2.5) plus embed latency,
+                                # or every re-verify cycle flashes a grey
+                                # "?" on a perfectly tracked face.
 
 # =====================================================================
 #  VOICE ANNOUNCEMENTS (Piper, offline)
@@ -425,9 +715,12 @@ else:
 
 # ========================= INSIGHTFACE ===============================
 print(f"[INFO] loading InsightFace ({MODEL_PACK})...")
+_modules = ["detection", "recognition"]
+if AGE_ENABLED:
+    _modules.append("genderage")
 app = FaceAnalysis(
     name=MODEL_PACK,
-    allowed_modules=["detection", "recognition"],
+    allowed_modules=_modules,
     providers=["CPUExecutionProvider"]
 )
 app.prepare(ctx_id=-1, det_size=DET_SIZE, det_thresh=DET_CONFIDENCE)
@@ -435,6 +728,40 @@ rec_model = app.models.get("recognition")
 if rec_model is None:
     raise RuntimeError("Recognition model missing from pack "
                        f"'{MODEL_PACK}'")
+ga_model = app.models.get("genderage") if AGE_ENABLED else None
+_ga_warned = False              # one-shot flag for genderage errors
+
+def warmup_models():
+    """Run one throwaway inference through every model at startup.
+
+    ONNX Runtime builds and optimises its graph on the FIRST inference,
+    and allocates its arenas then too. Without this, the first real face
+    pays that cost, which is why the very first box and the very first
+    name take noticeably longer than the rest. Doing it here on a blank
+    image moves the cost to load time, where nobody is waiting on it."""
+    t0 = time.time()
+    blank = np.zeros((DET_SIZE[1], DET_SIZE[0], 3), dtype=np.uint8)
+    try:
+        app.det_model.detect(blank, max_num=0, metric="default")
+    except Exception as e:
+        print(f"[WARN] detector warmup failed: {e}")
+    # Feed the recognition/genderage models a synthetic face-shaped box
+    # so their sessions initialise too.
+    try:
+        f = Face(bbox=np.array([100, 100, 200, 240], dtype=np.float32),
+                 kps=np.array([[130, 150], [170, 150], [150, 180],
+                               [132, 205], [168, 205]], dtype=np.float32),
+                 det_score=0.99)
+        rec_model.get(blank, f)
+        if ga_model is not None:
+            ga_model.get(blank, f)
+    except Exception as e:
+        print(f"[WARN] recognition warmup failed: {e}")
+    print(f"[INFO] models warmed up in {time.time() - t0:.1f}s "
+          "(first real face is now fast)")
+if AGE_ENABLED and ga_model is None:
+    print("[WARN] genderage model not in pack - age/gender OFF")
+warmup_models()
 print("[INFO] InsightFace ready")
 
 def detect_only(rgb):
@@ -443,14 +770,39 @@ def detect_only(rgb):
     return bboxes, kpss
 
 def compute_embedding(rgb, bbox, kps, det_score):
-    """Heavy pass: ArcFace 512-D embedding for one detected face.
+    """Heavy pass: ArcFace 512-D embedding for one detected face, plus
+    age/gender if that model is loaded (same aligned face, so running
+    it here costs one extra small inference instead of a second pass).
+    Returns (embedding, age, gender) with age/gender None if disabled.
     NOTE: color handling matches v1 and your enrollment pipeline.
     Do not change the BGR->RGB conversion unless you re-enroll."""
     face = Face(bbox=np.asarray(bbox, dtype=np.float32),
                 kps=np.asarray(kps, dtype=np.float32),
                 det_score=float(det_score))
     rec_model.get(rgb, face)
-    return face.embedding
+    age = gender = None
+    if ga_model is not None and (bbox[3] - bbox[1]) >= AGE_MIN_FACE_PX:
+        global _ga_warned
+        try:
+            # COLOR: InsightFace expects BGR (its models swapRB internally).
+            # This pipeline passes RGB, inherited from v1, and recognition
+            # depends on that staying consistent with enrollment, so it is
+            # left alone. But genderage is an ABSOLUTE prediction, not a
+            # comparison, so wrong channel order produces wildly wrong
+            # ages. Hand this model the BGR it actually wants.
+            ga_model.get(cv2.cvtColor(rgb, cv2.COLOR_RGB2BGR), face)
+            age = int(face.age) if face.age is not None else None
+            # InsightFace: gender 1 = male, 0 = female
+            gender = ("M" if int(face.gender) == 1 else "F") \
+                if face.gender is not None else None
+        except Exception as e:
+            # Report once. Silently swallowing this made a blank age
+            # field impossible to diagnose.
+            if not _ga_warned:
+                print(f"[WARN] genderage inference failed ({e}) - "
+                      "age/gender will stay blank")
+                _ga_warned = True
+    return face.embedding, age, gender
 
 def match_face(embedding, active_encodings, active_names_arr, threshold):
     """Cosine matching with a margin test against other identities."""
@@ -480,6 +832,12 @@ SENSOR_FULL = (min(SENSOR_NATIVE[0], SENSOR_MAX_REQ[0]),
                min(SENSOR_NATIVE[1], SENSOR_MAX_REQ[1]))
 SENSOR_SIZES = {"BINNED": SENSOR_BINNED, "FULL": SENSOR_FULL}
 
+# Camera orientation. These feed BOTH the camera Transform and the
+# optical-axis math used by height. Keep them in sync by only ever
+# changing them here.
+HFLIP = True
+VFLIP = True
+
 def make_config(sensor_size, buffers):
     """The 'sensor' hint selects the readout mode WITHOUT allocating
     raw buffers to the app. On a Camera Module 3 in full mode this
@@ -488,7 +846,7 @@ def make_config(sensor_size, buffers):
     common = dict(
         main={"size": (MAIN_W, MAIN_H), "format": "RGB888"},
         lores={"size": (LORES_W, LORES_H), "format": "YUV420"},
-        transform=Transform(hflip=True, vflip=True),
+        transform=Transform(hflip=HFLIP, vflip=VFLIP),
         buffer_count=buffers
     )
     try:
@@ -537,6 +895,8 @@ face_locations = []             # MAIN-frame coords (top,right,bottom,left)
 face_names = []
 face_confidences = []
 face_zones = []
+face_ages = []                  # per-face (age, gender) or None
+info_mode = INFO_MODE_DEFAULT   # basic / full, toggled with I
 last_result_time = 0.0
 
 auto_zoom_enabled = True
@@ -565,10 +925,12 @@ start_time = time.time()
 fps = 0
 processing = False
 latest_main_frame = None
-latest_frame_meta = (zoom_factor, 0.5, 0.5)   # crop (zoom, panx, pany)
-                                              # in effect at capture
-result_meta = (zoom_factor, 0.5, 0.5)         # crop the latest worker
-                                              # results were measured in
+latest_frame_meta = (zoom_factor, 0.5, 0.5, 0.0)  # (zoom, panx, pany,
+                                                  # capture_time) for the
+                                                  # frame handed to the
+                                                  # worker
+result_meta = (zoom_factor, 0.5, 0.5, 0.0)        # same, for the latest
+                                                  # published results
 main_frame_lock = Lock()
 
 # Screenshots. L saves exactly what is on screen (boxes, labels, HUD).
@@ -728,20 +1090,34 @@ def mouse_callback(event, x, y, flags, param):
                 print(f"Zone {i + 1} deleted")
                 break
 
-cv2.namedWindow("Face Recognition")
-cv2.setMouseCallback("Face Recognition", mouse_callback)
+if not HEADLESS:
+    cv2.namedWindow("Face Recognition")
+    cv2.setMouseCallback("Face Recognition", mouse_callback)
+else:
+    print("[INFO] headless: no display, browser stream only")
 
 # ===================== IDENTITY CACHE (worker) =======================
 cache_reset = False             # set by the main thread after camera
                                 # moves or zone edits; worker clears
                                 # the cache at the next pass
+cache_lock = Lock()             # identity_cache is now touched by both
+                                # the detect thread and the embed thread
+embed_q = Queue(maxsize=2)      # detect -> embed handoff. Small on
+                                # purpose: a stale face is not worth
+                                # embedding, so old jobs get dropped
 
 def cache_match(cx, cy, fh):
     """A detection only inherits a cached identity when close AND of
     similar size. Without the size check, a false detection on a wall
-    near a person could pick up their name without any embedding."""
+    near a person could pick up their name without any embedding.
+
+    The tolerance has to cover how far a face MOVES between detection
+    passes, not just detector jitter. At ~2.5 passes/sec a brisk walk
+    covers ~240px, which the old 180px tolerance missed, so the name
+    dropped out every time you moved. The size check is what keeps this
+    safe despite the generous radius."""
     best = None
-    best_d = max(120.0, fh * 1.5)
+    best_d = max(CACHE_MATCH_MIN_PX, fh * CACHE_MATCH_FACE_FRAC)
     for e in identity_cache:
         ratio = fh / max(e["h"], 1.0)
         if ratio < 0.5 or ratio > 2.0:
@@ -772,15 +1148,17 @@ def recognition_worker():
     tracks in near real time and the label sharpens a moment later."""
     global face_locations, face_names, face_confidences, face_zones
     global processing, last_result_time, cache_reset, result_meta
+    global face_ages
 
-    def publish(locs, names, confs, fzones, meta):
+    def publish(locs, names, confs, fzones, ages, meta):
         global face_locations, face_names, face_confidences, face_zones
-        global result_meta, last_result_time
+        global result_meta, last_result_time, face_ages
         with result_lock:
             face_locations = list(locs)
             face_names = list(names)
             face_confidences = list(confs)
             face_zones = list(fzones)
+            face_ages = list(ages)
             result_meta = meta
             last_result_time = time.time()
 
@@ -790,7 +1168,8 @@ def recognition_worker():
             continue
 
         if cache_reset:
-            identity_cache.clear()
+            with cache_lock:
+                identity_cache.clear()
             cache_reset = False
 
         with main_frame_lock:
@@ -809,6 +1188,7 @@ def recognition_worker():
         names = []
         confs = []
         zones_found = []
+        ages = []
         jobs = []           # deferred embed jobs
 
         def add_detection(rgb, bbox_local, kps_local, det_score,
@@ -826,21 +1206,27 @@ def recognition_worker():
             cx = (mx1 + mx2) / 2
             cy = (my1 + my2) / 2
 
-            entry = cache_match(cx, cy, fh)
-            if entry is not None:
-                entry["cx"], entry["cy"], entry["h"] = cx, cy, fh
-                entry["seen"] = now
-                name, conf = entry["name"], entry["conf"]
-            else:
-                name, conf = PENDING, 0.0    # not yet embedded
+            with cache_lock:
+                entry = cache_match(cx, cy, fh)
+                if entry is not None:
+                    entry["cx"], entry["cy"], entry["h"] = cx, cy, fh
+                    entry["seen"] = now
+                    name, conf = entry["name"], entry["conf"]
+                    ag = entry.get("ag")
+                else:
+                    name, conf = PENDING, 0.0    # not yet embedded
+                    ag = None
 
             idx = len(locations)
             locations.append((int(my1), int(mx2), int(my2), int(mx1)))
             names.append(name)
             confs.append(conf)
             zones_found.append(zone_idx)
+            ages.append(ag)
 
-            fresh = entry is not None and (now - entry["t"]) <= REVERIFY_SEC
+            with cache_lock:
+                fresh = (entry is not None
+                         and (now - entry["t"]) <= REVERIFY_SEC)
             if (not fresh and fh >= MIN_FACE_EMBED_PX
                     and kps_local is not None):
                 jobs.append({
@@ -877,38 +1263,67 @@ def recognition_worker():
                 add_detection(rgb, (x1, y1, x2, y2), kps, score,
                               0, 0, 1.0, -1, base_threshold)
 
-        publish(locations, names, confs, zones_found, frame_meta)
+        publish(locations, names, confs, zones_found, ages, frame_meta)
 
-        # ---- Phase 2: embeddings, biggest faces first ----
+        # ---- Hand the slow work to the embed thread ----
+        # Embeddings used to run right here, which meant the next
+        # detection could not start until they finished. Box refresh was
+        # therefore gated by the SLOWEST step, so boxes updated about
+        # once a second. Now detection loops at detection speed and the
+        # embed thread fills in names alongside it. Names land a beat
+        # later via the identity cache, which is the right trade: a box
+        # in the right place immediately beats a name a moment sooner.
         jobs.sort(key=lambda j: j["fh"], reverse=True)
-        embeds_done = 0
-        for job in jobs:
-            if embeds_done >= MAX_EMBEDS_PER_PASS:
-                break
-            emb = compute_embedding(job["rgb"], job["bbox"],
-                                    job["kps"], job["score"])
+        for job in jobs[:MAX_EMBEDS_PER_PASS]:
+            job["encodings"] = active_encodings
+            job["names_arr"] = active_names_arr
+            job["t"] = now
+            try:
+                embed_q.put_nowait(job)
+            except Full:
+                pass        # embedder busy; this face gets the next pass
+
+        with cache_lock:
+            cache_prune(now)
+        processing = False
+
+def embed_worker():
+    """Runs ArcFace (and genderage) off the detection thread, writing
+    results into the identity cache. The detect loop reads that cache,
+    so names appear on the next detection pass."""
+    while True:
+        job = embed_q.get()
+        try:
+            emb, age, gender = compute_embedding(job["rgb"], job["bbox"],
+                                                 job["kps"], job["score"])
             if emb is None:
                 continue
-            name, conf = match_face(emb, active_encodings,
-                                    active_names_arr, job["threshold"])
-            embeds_done += 1
-            entry = job["entry"]
-            if entry is None:
-                entry = {"cx": job["cx"], "cy": job["cy"], "h": job["fh"],
-                         "name": name, "conf": conf, "t": now, "seen": now}
-                identity_cache.append(entry)
-            else:
-                entry["name"] = name
-                entry["conf"] = conf
-                entry["t"] = now
-            names[job["idx"]] = name
-            confs[job["idx"]] = conf
+            name, conf = match_face(emb, job["encodings"],
+                                    job["names_arr"], job["threshold"])
+            ag = (age, gender) if age is not None else None
+            now = time.time()
+            with cache_lock:
+                # Always re-match under the lock rather than trusting the
+                # entry the detect thread captured. That reference can be
+                # seconds old by now, and cache_prune rebuilds the list,
+                # so a stale reference would take the result into a dict
+                # no longer in the cache and the name would be lost.
+                entry = cache_match(job["cx"], job["cy"], job["fh"])
+                if entry is None:
+                    identity_cache.append({
+                        "cx": job["cx"], "cy": job["cy"], "h": job["fh"],
+                        "name": name, "conf": conf, "t": now, "seen": now,
+                        "ag": ag})
+                else:
+                    entry["name"] = name
+                    entry["conf"] = conf
+                    entry["t"] = now
+                    if ag is not None:
+                        entry["ag"] = ag
+        except Exception as e:
+            print(f"[WARN] embed failed: {e}")
 
-        if embeds_done > 0:
-            publish(locations, names, confs, zones_found, frame_meta)
-
-        cache_prune(now)
-        processing = False
+Thread(target=embed_worker, daemon=True).start()
 
 worker_thread = Thread(target=recognition_worker, daemon=True)
 worker_thread.start()
@@ -1058,10 +1473,15 @@ def get_identified_faces():
         names = list(face_names)
         confs = list(face_confidences)
         fzones = list(face_zones)
+        fages = list(face_ages)
+        meta_zoom = result_meta[0] if result_meta else zoom_factor
+
+    if len(fages) != len(locs):
+        fages = [None] * len(locs)
 
     identities = []
-    for (top, right, bottom, left), name, conf, zone_idx in zip(
-            locs, names, confs, fzones):
+    for (top, right, bottom, left), name, conf, zone_idx, ag in zip(
+            locs, names, confs, fzones, fages):
         # Keep the TIGHT SCRFD box for tracking. The template is
         # grabbed from this region, so it stays on face texture and
         # never picks up the wall. Expansion happens only at draw time.
@@ -1071,11 +1491,18 @@ def get_identified_faces():
         right_d = int(right * SX)
         identities.append({
             "box": (top_d, right_d, bottom_d, left_d),
+            # Raw detector output in MAIN pixels. Distance and height are
+            # measured from THIS, never from the display-scaled box: the
+            # display path adds an aspect/scaling factor, and the tracked
+            # box is size-eased so it lags the true face size.
+            "m_box": (float(top), float(right), float(bottom), float(left)),
+            "m_zoom": meta_zoom,
             "cx": (left_d + right_d) / 2,
             "cy": (top_d + bottom_d) / 2,
             "name": name,
             "confidence": conf,
             "zone_idx": zone_idx,
+            "ag": ag,
         })
     return identities
 
@@ -1091,54 +1518,185 @@ def expand_box(box):
     bottom = min(DISPLAY_H - 1, int(bottom + bh * BOX_EXPAND_BOTTOM))
     return top, right, bottom, left
 
-def update_tracks(gray_frame):
+def update_tracks(gray_frame, dt):
+    """Move every box to where its face is right now.
+
+    Velocity is kept in px/SECOND, so prediction and the speed readout
+    stay correct even when the frame rate wobbles.
+
+    On a failed match the box COASTS: it keeps gliding at its last known
+    velocity for up to COAST_MAX_FRAMES instead of freezing. Freezing was
+    what made the box stutter, because a frozen box also killed the
+    prediction, which pushed the search window further behind the face
+    and caused the next match to fail too."""
     global tracked_faces
     h, w = gray_frame.shape[:2]
+    if dt <= 0:
+        dt = 1 / 30.0
     for t in tracked_faces:
         top, right, bottom, left = t["box"]
+        vx = t.get("vx", 0.0)           # px/sec
+        vy = t.get("vy", 0.0)
         # Predict where the face is heading and center the search there,
         # so a fast head move does not outrun the search window.
-        vx = t.get("vx", 0.0) * PREDICT_GAIN
-        vy = t.get("vy", 0.0) * PREDICT_GAIN
-        pleft = left + vx
-        ptop = top + vy
-        pright = right + vx
-        pbottom = bottom + vy
+        ox = vx * dt * PREDICT_GAIN
+        oy = vy * dt * PREDICT_GAIN
         m = TRACK_SEARCH_MARGIN
-        sx1 = int(max(0, pleft - m)); sy1 = int(max(0, ptop - m))
-        sx2 = int(min(w, pright + m)); sy2 = int(min(h, pbottom + m))
+        sx1 = int(max(0, left + ox - m)); sy1 = int(max(0, top + oy - m))
+        sx2 = int(min(w, right + ox + m)); sy2 = int(min(h, bottom + oy + m))
         search = gray_frame[sy1:sy2, sx1:sx2]
         tmpl = t["template"]
         th, tw = tmpl.shape[:2]
-        if th == 0 or tw == 0 or search.shape[0] < th or search.shape[1] < tw:
-            continue                        # hold box, wait for reseed
-        res = cv2.matchTemplate(search, tmpl, cv2.TM_CCOEFF_NORMED)
-        _, max_val, _, max_loc = cv2.minMaxLoc(res)
-        if max_val < MATCH_THRESHOLD:
-            t["vx"] = t.get("vx", 0.0) * 0.5   # decay guess, hold box
-            t["vy"] = t.get("vy", 0.0) * 0.5
-            continue
-        new_left = sx1 + max_loc[0]
-        new_top = sy1 + max_loc[1]
-        new_right = new_left + tw
-        new_bottom = new_top + th
-        # Velocity estimate for next frame's prediction (smoothed).
-        ocx, ocy = (left + right) / 2.0, (top + bottom) / 2.0
-        ncx, ncy = (new_left + new_right) / 2.0, (new_top + new_bottom) / 2.0
-        t["vx"] = 0.5 * t.get("vx", 0.0) + 0.5 * (ncx - ocx)
-        t["vy"] = 0.5 * t.get("vy", 0.0) + 0.5 * (ncy - ocy)
-        t["box"] = (new_top, new_right, new_bottom, new_left)
-        # Blend the template slowly toward the current patch instead of
-        # replacing it. This keeps motion-blur tolerance but stops the
-        # box slowly walking onto a high-contrast feature (eyes, glasses)
-        # and sitting off-center. The detector re-centers it in reseed.
-        new_tmpl = gray_frame[new_top:new_bottom, new_left:new_right]
-        old_tmpl = t["template"]
-        if (new_tmpl.size > 0 and new_tmpl.std() >= MIN_TEMPLATE_STD
-                and new_tmpl.shape == old_tmpl.shape):
-            t["template"] = cv2.addWeighted(old_tmpl, 0.7, new_tmpl, 0.3, 0)
 
-def reseed_tracks(gray_frame, identities):
+        matched = False
+        if not (th == 0 or tw == 0 or search.shape[0] < th
+                or search.shape[1] < tw):
+            res = cv2.matchTemplate(search, tmpl, cv2.TM_CCOEFF_NORMED)
+            _, max_val, _, max_loc = cv2.minMaxLoc(res)
+            # Already coasting means we are committed to this face, so
+            # accept a weaker match to regain lock rather than stall.
+            bar = MATCH_THRESHOLD_COAST if t.get("coast", 0) > 0 \
+                else MATCH_THRESHOLD
+            if max_val >= bar:
+                matched = True
+                new_left = sx1 + max_loc[0]
+                new_top = sy1 + max_loc[1]
+                new_right = new_left + tw
+                new_bottom = new_top + th
+                ocx, ocy = (left + right) / 2.0, (top + bottom) / 2.0
+                ncx = (new_left + new_right) / 2.0
+                ncy = (new_top + new_bottom) / 2.0
+                mvx = (ncx - ocx) / dt          # px/sec
+                mvy = (ncy - ocy) / dt
+                t["vx"] = vx + (mvx - vx) * VEL_SMOOTH
+                t["vy"] = vy + (mvy - vy) * VEL_SMOOTH
+                t["box"] = (new_top, new_right, new_bottom, new_left)
+                t["coast"] = 0
+                t["coast_px"] = 0.0
+
+                # Refresh rate follows motion. Moving fast, the face is
+                # blurred, so adopt the blurred patch quickly or the next
+                # match fails. Standing still, adopt slowly so the
+                # template cannot drift off-face.
+                spd = (t["vx"] ** 2 + t["vy"] ** 2) ** 0.5
+                k = min(1.0, spd / BLEND_SPEED_FULL)
+                blend = TEMPLATE_BLEND_STILL + \
+                    (TEMPLATE_BLEND_MOVING - TEMPLATE_BLEND_STILL) * k
+                new_tmpl = gray_frame[new_top:new_bottom, new_left:new_right]
+                if (new_tmpl.size > 0 and new_tmpl.std() >= MIN_TEMPLATE_STD
+                        and new_tmpl.shape == tmpl.shape):
+                    t["template"] = cv2.addWeighted(tmpl, 1.0 - blend,
+                                                    new_tmpl, blend, 0)
+
+        if not matched:
+            c = t.get("coast", 0) + 1
+            t["coast"] = c
+            dx = vx * dt
+            dy = vy * dt
+            travelled = t.get("coast_px", 0.0) + (dx * dx + dy * dy) ** 0.5
+            budget = max(COAST_MAX_PX, (right - left) * COAST_MAX_FACE_FRAC)
+            if (c <= COAST_MAX_FRAMES and travelled <= budget
+                    and (abs(vx) > 1 or abs(vy) > 1)):
+                # Dead reckoning: keep gliding so the box stays on a
+                # moving face through motion blur.
+                t["coast_px"] = travelled
+                nl = int(max(0, min(w - (right - left), left + dx)))
+                nt = int(max(0, min(h - (bottom - top), top + dy)))
+                t["box"] = (nt, nl + (right - left), nt + (bottom - top), nl)
+                t["vx"] = vx * COAST_VEL_DECAY
+                t["vy"] = vy * COAST_VEL_DECAY
+            else:
+                # Out of coast budget. Stop moving and wait for the
+                # detector rather than drifting off into the scene.
+                t["vx"] = vx * 0.5
+                t["vy"] = vy * 0.5
+
+def track_iou(a, b):
+    """Overlap between two track boxes, 0 to 1."""
+    at, ar, ab, al = a["box"]
+    bt, br, bb, bl = b["box"]
+    ix1, iy1 = max(al, bl), max(at, bt)
+    ix2, iy2 = min(ar, br), min(ab, bb)
+    iw, ih = max(0, ix2 - ix1), max(0, iy2 - iy1)
+    inter = iw * ih
+    if inter <= 0:
+        return 0.0
+    aa = max(1, (ar - al) * (ab - at))
+    ba = max(1, (br - bl) * (bb - bt))
+    return inter / float(aa + ba - inter)
+
+def tracks_collide(a, b):
+    """True if these two tracks are really the same person. Either they
+    overlap, or their centers sit closer than a face width apart, which
+    catches a box parked beside someone rather than on them."""
+    if track_iou(a, b) > TRACK_MERGE_IOU:
+        return True
+    at, ar, ab, al = a["box"]
+    bt, br, bb, bl = b["box"]
+    acx, acy = (al + ar) / 2.0, (at + ab) / 2.0
+    bcx, bcy = (bl + br) / 2.0, (bt + bb) / 2.0
+    d = ((acx - bcx) ** 2 + (acy - bcy) ** 2) ** 0.5
+    size = (((ar - al) + (br - bl)) / 2.0 +
+            ((ab - at) + (bb - bt)) / 2.0) / 2.0
+    return d < size * TRACK_MERGE_CENTER_FRAC
+
+def suppress_duplicate_tracks():
+    """Collapse duplicate boxes for one person. Keeps whichever track the
+    detector confirmed most recently, since that is the one actually on
+    the face. The loser is dropped, not merged, because its template is
+    the drifted one we want gone.
+
+    Two rules:
+      1. Boxes that overlap or sit close together are the same face.
+      2. Boxes carrying the SAME NAME are the same person no matter how
+         far apart they are. A track that lost lock and coasted away
+         still wears the name, so proximity alone never catches it.
+    """
+    global tracked_faces
+    if len(tracked_faces) < 2:
+        return
+    now = time.time()
+    def rank(t):
+        return (t.get("id_time", 0.0), len(t.get("hist", ())),
+                -t.get("misses", 0))
+    order = sorted(range(len(tracked_faces)),
+                   key=lambda i: rank(tracked_faces[i]), reverse=True)
+    dropped = set()
+    for pos, i in enumerate(order):
+        if i in dropped:
+            continue
+        ni = track_display_name(tracked_faces[i])
+        for j in order[pos + 1:]:
+            if j in dropped:
+                continue
+            tj = tracked_faces[j]
+            # Same name means same person ONLY if this copy is not
+            # currently being confirmed by the detector. A real duplicate
+            # (a track that lost lock and coasted off) goes unconfirmed
+            # and stale. Two real people who happen to be misidentified
+            # as each other are BOTH live, and dropping one would delete
+            # a real person's box, so live tracks are always kept.
+            stale = (tj.get("misses", 0) >= SAME_NAME_STALE_MISSES
+                     or now - tj.get("seen_time", 0.0) > SAME_NAME_STALE_SEC)
+            same_name = (ni is not None and ni != "Unknown"
+                         and track_display_name(tj) == ni and stale)
+            if same_name or tracks_collide(tracked_faces[i], tj):
+                dropped.add(j)
+    if dropped:
+        tracked_faces = [t for i, t in enumerate(tracked_faces)
+                         if i not in dropped]
+
+def expire_stale_tracks():
+    """Drop tracks the detector has not confirmed in TRACK_UNCONFIRMED_SEC.
+    Bounds ghost boxes in real time rather than in detector passes."""
+    global tracked_faces
+    now = time.time()
+    tracked_faces = [
+        t for t in tracked_faces
+        if now - t.get("seen_time", now) <= TRACK_UNCONFIRMED_SEC
+    ]
+
+def reseed_tracks(gray_frame, identities, lag=0.0):
     """Fold a (possibly lagged) detector pass into the live tracks.
 
     Detection is slow, so its POSITION is stale. This function does NOT
@@ -1176,14 +1734,26 @@ def reseed_tracks(gray_frame, identities):
             t = tracked_faces[matched]
             bt, br, bb, bl = t["box"]
             tcx, tcy = (bl + br) / 2.0, (bt + bb) / 2.0
-            # Drift correction: only when the detection is CLOSE to the
-            # tracked box (you are roughly still) do we nudge the center
-            # toward it. When it is far, you have moved and the
-            # detection is stale, so we keep the tracker's live center
-            # and never yank the box backward.
-            if best_dist <= DRIFT_CORRECT_DIST:
-                tcx += (cx - tcx) * DRIFT_CORRECT_BLEND
-                tcy += (cy - tcy) * DRIFT_CORRECT_BLEND
+
+            # Lag compensation. The detection reports where the face was
+            # at capture time, `lag` seconds ago. Project it forward by
+            # the tracker's measured velocity to get where the face is
+            # NOW, then snap onto that. Blending only partway (the old
+            # behaviour) left a residual offset every pass, and since the
+            # template kept drifting between passes, the box settled onto
+            # a neck or shoulder instead of the face.
+            dcx, dcy = cx, cy
+            if LAG_COMPENSATE and 0 < lag <= LAG_MAX_SEC:
+                sx = t.get("vx", 0.0) * lag
+                sy = t.get("vy", 0.0) * lag
+                sx = max(-LAG_MAX_SHIFT_PX, min(LAG_MAX_SHIFT_PX, sx))
+                sy = max(-LAG_MAX_SHIFT_PX, min(LAG_MAX_SHIFT_PX, sy))
+                dcx += sx
+                dcy += sy
+
+            tcx += (dcx - tcx) * SNAP_BLEND
+            tcy += (dcy - tcy) * SNAP_BLEND
+
             cur_w, cur_h = br - bl, bb - bt
             dt, dr, db, dl = ident["box"]
             det_w, det_h = dr - dl, db - dt
@@ -1201,17 +1771,35 @@ def reseed_tracks(gray_frame, identities):
             if ident["name"] != PENDING:
                 t["hist"].append(ident["name"])
                 t["confidence"] = ident["confidence"]
+                t["id_time"] = time.time()   # for identity persistence
+            if ident.get("m_box") is not None:
+                t["m_box"] = ident["m_box"]
+                t["m_zoom"] = ident["m_zoom"]
+            if ident.get("ag") is not None:
+                t["ag"] = ident["ag"]
+                _a, _g = ident["ag"]
+                if _a is not None:
+                    t.setdefault("age_hist",
+                                 deque(maxlen=AGE_VOTE_LEN)).append(_a)
+                if _g:
+                    t.setdefault("gender_hist",
+                                 deque(maxlen=AGE_VOTE_LEN)).append(_g)
             t["zone_idx"] = ident["zone_idx"]
             t["misses"] = 0
+            t["coast"] = 0          # detector confirmed it, lock is real
+            t["coast_px"] = 0.0
+            t["seen_time"] = time.time()
             used_tracks.add(matched)
         else:
             # Only spawn if this detection is not just a lagged copy of
             # an existing track sitting nearby.
+            dt_, dr_, db_, dl_ = ident["box"]
+            guard = max(SPAWN_MIN_DIST, (db_ - dt_) * SPAWN_FACE_FRAC)
             near = False
             for i in range(len(tracked_faces)):
                 top, right, bottom, left = tracked_faces[i]["box"]
                 tcx, tcy = (left + right) / 2, (top + bottom) / 2
-                if ((tcx - cx) ** 2 + (tcy - cy) ** 2) ** 0.5 < SPAWN_MIN_DIST:
+                if ((tcx - cx) ** 2 + (tcy - cy) ** 2) ** 0.5 < guard:
                     near = True
                     break
             if near:
@@ -1233,6 +1821,14 @@ def reseed_tracks(gray_frame, identities):
                 "confidence": ident["confidence"],
                 "zone_idx": ident["zone_idx"],
                 "misses": 0,
+                "coast": 0,
+                "seen_time": time.time(),
+                "m_box": ident.get("m_box"),
+                "m_zoom": ident.get("m_zoom", zoom_factor),
+                "vx": 0.0,
+                "vy": 0.0,
+                "ag": ident.get("ag"),
+                "id_time": time.time() if ident["name"] != PENDING else 0.0,
             })
 
     for i in range(n_before):
@@ -1248,10 +1844,16 @@ def track_display_name(t):
     return Counter(t["hist"]).most_common(1)[0][0]
 
 # ========================= DRAW RESULTS ==============================
+_last_draw_time = 0.0
+
 def draw_results(frame):
-    global last_reseed_time, tracked_faces
+    global last_reseed_time, tracked_faces, _last_draw_time
 
     gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+
+    now_draw = time.time()
+    dt = now_draw - _last_draw_time if _last_draw_time else 0.0
+    _last_draw_time = now_draw
 
     with result_lock:
         age = time.time() - last_result_time
@@ -1260,12 +1862,23 @@ def draw_results(frame):
     if age > IDENTITY_STALE_SEC:
         tracked_faces = []
 
-    update_tracks(gray_frame)
+    update_tracks(gray_frame, dt)
 
     if current_result_time != last_reseed_time:
         identities = get_identified_faces()
-        reseed_tracks(gray_frame, identities)
+        # How old is this detection? Used to project it forward onto the
+        # face's current position instead of snapping to a stale one.
+        with result_lock:
+            cap_t = result_meta[3] if len(result_meta) > 3 else 0.0
+        lag = (time.time() - cap_t) if cap_t else 0.0
+        reseed_tracks(gray_frame, identities, lag)
         last_reseed_time = current_result_time
+
+    # Collapse duplicate boxes on one person, then drop anything the
+    # detector has not confirmed lately. Runs every frame so a ghost is
+    # gone in a frame, not after several slow detector passes.
+    suppress_duplicate_tracks()
+    expire_stale_tracks()
 
     _, _, using_far = get_active_encodings()
 
@@ -1275,11 +1888,22 @@ def draw_results(frame):
         name = track_display_name(t)
         confidence, zone_idx = t["confidence"], t["zone_idx"]
 
-        pending = name is None       # identity not resolved yet
+        pending = name is None       # no identity resolved yet
+
+        # Is the name still fresh? A track keeps its voted name after the
+        # detector stops confirming it (when you turn away, say), which
+        # is what makes the label persist. But the stored confidence is
+        # then stale, so past NAME_FRESH_SEC we show "?" instead of a
+        # number that is no longer true.
+        held = (not pending and t.get("id_time", 0.0) > 0.0
+                and (time.time() - t["id_time"]) > NAME_FRESH_SEC)
+
         if zone_idx >= 0:
             color = ZONE_COLORS[zone_idx]
         elif pending:
             color = (150, 150, 150)
+        elif held:
+            color = (140, 140, 140)     # known, but not freshly confirmed
         elif name == "Unknown":
             color = (60, 60, 255)
         elif confidence >= 70:
@@ -1294,9 +1918,24 @@ def draw_results(frame):
             cv2.line(frame, (x, y), (x + dx * corner, y), color, 2)
             cv2.line(frame, (x, y), (x, y + dy * corner), color, 2)
 
-        # No label while the identity resolves. The box just sits on
-        # the face quietly instead of flashing a SCANNING tag.
+        # Metrics from the tight (unexpanded) face box, EMA-smoothed.
+        dist_str = ""
+        if DIST_ENABLED:
+            dcm = track_distance_cm(t)
+            if dcm is not None:
+                prev = t.get("dist_cm")
+                t["dist_cm"] = dcm if prev is None else \
+                    prev + (dcm - prev) * DIST_SMOOTH
+                dist_str = fmt_distance(t["dist_cm"])
+        if SPEED_ENABLED:
+            update_speed(t, dt)
+        if HEIGHT_ENABLED:
+            update_height(t)
+
         if pending:
+            if dist_str:
+                draw_tag_stack(frame, left, top, bottom,
+                               [(dist_str, 0.5)], (110, 110, 110))
             continue
 
         if name == "Unknown":
@@ -1304,16 +1943,66 @@ def draw_results(frame):
         else:
             far_tag = " [FAR]" if using_far else ""
             zone_tag = f" [{ZONE_NAMES[zone_idx]}]" if zone_idx >= 0 else ""
-            label = f"{name.upper()}  {confidence}%{far_tag}{zone_tag}"
+            conf_tag = "?" if held else f"  {confidence}%"
+            label = f"{name.upper()}{conf_tag}{far_tag}{zone_tag}"
+        if dist_str:
+            label += f"  {dist_str}"
 
-        label_y = top - 10 if top > 30 else bottom + 25
-        (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.5, 1)
-        cv2.rectangle(frame, (left, label_y - lh - 6),
-                      (left + lw + 8, label_y + 2), color, -1)
-        cv2.putText(frame, label, (left + 4, label_y - 2),
-                    cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 0), 1, cv2.LINE_AA)
+        lines = [(label, 0.5)]
+        # Second line: speed, height, age/gender. Toggle with I.
+        if info_mode == "full":
+            bits = [b for b in (fmt_speed(t), fmt_height(t), fmt_ag(t)) if b]
+            if bits:
+                lines.append(("  ".join(bits), 0.44))
+        draw_tag_stack(frame, left, top, bottom, lines, color)
 
     return frame
+
+def draw_tag_stack(frame, left, top, bottom, lines, color):
+    """Draw label lines near a box, always fully on screen.
+
+    Tries above the box, then below, then inside it. A big zoomed-in box
+    can reach both edges of a small screen, so "above" and "below" both
+    run off; drawing inside is the only place left. Also clamps x, since
+    a box near the right edge would otherwise push text off the side.
+
+    lines: list of (text, font_scale). Drawn top to bottom.
+    """
+    if not lines:
+        return
+    FONT = cv2.FONT_HERSHEY_SIMPLEX
+    PAD, GAP = 6, 3
+    sizes = []
+    for text, scale in lines:
+        (tw, th), _ = cv2.getTextSize(text, FONT, scale, 1)
+        sizes.append((tw, th))
+    block_h = sum(th + PAD for _, th in sizes) + GAP * (len(lines) - 1)
+    widest = max(tw for tw, _ in sizes)
+
+    if top - block_h - 4 >= 0:
+        y = top - block_h - 4                 # above the box
+        inside = False
+    elif bottom + block_h + 4 <= DISPLAY_H:
+        y = bottom + 4                        # below the box
+        inside = False
+    else:
+        y = max(2, top + 4)                   # nowhere outside: go inside
+        inside = True
+
+    x = max(2, min(int(left), DISPLAY_W - widest - 10))
+
+    for (text, scale), (tw, th) in zip(lines, sizes):
+        h = th + PAD
+        if y + h > DISPLAY_H:
+            break                             # ran out of screen
+        bg = (0, 0, 0) if inside else color
+        fg = color if inside else (0, 0, 0)
+        cv2.rectangle(frame, (x, y), (x + tw + 8, y + h), bg, -1)
+        if inside:
+            cv2.rectangle(frame, (x, y), (x + tw + 8, y + h), color, 1)
+        cv2.putText(frame, text, (x + 4, y + th + 1), FONT, scale, fg, 1,
+                    cv2.LINE_AA)
+        y += h + GAP
 
 # ========================== DRAW ZONES ===============================
 def draw_zones(frame):
@@ -1490,16 +2179,743 @@ def draw_hud(frame, current_fps, zoom, auto_zoom):
                 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1,
                 cv2.LINE_AA)
 
+    if DIST_ENABLED:
+        dist_lbl = "DIST:CAL" if DIST_CALIBRATED else "DIST:~"
+        dist_color = (0, 220, 80) if DIST_CALIBRATED else (0, 160, 255)
+        cv2.putText(frame, dist_lbl, (910, 32),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.48, dist_color, 1,
+                    cv2.LINE_AA)
+
+    # Detection lag. This is how far behind the detector runs, and it is
+    # what lag compensation projects away. Big numbers here mean the
+    # recognition pass is slow, which is the root of most box problems.
+    if info_mode == "full":
+        with result_lock:
+            cap_t = result_meta[3] if len(result_meta) > 3 else 0.0
+        if cap_t:
+            lag_ms = (time.time() - cap_t) * 1000.0
+            lag_color = (0, 220, 80) if lag_ms < 400 else \
+                        (0, 160, 255) if lag_ms < 900 else (60, 60, 255)
+            cv2.putText(frame, f"LAG {lag_ms:.0f}ms", (10, 68),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.45, lag_color, 1,
+                        cv2.LINE_AA)
+
+    # Optical axis. Everything on this line is at exactly lens height,
+    # which is what CAM_HEIGHT_CM must equal. Handy two ways: measure
+    # whatever the line lands on to get camera height, or check the line
+    # stays on a level surface to confirm the camera is not tilted.
+    if info_mode == "full" and HEIGHT_ENABLED:
+        cy = int(optical_axis_y())
+        if 0 <= cy < h:
+            for x in range(0, w, 24):
+                cv2.line(frame, (x, cy), (x + 12, cy), (120, 120, 120), 1)
+            cv2.putText(frame, f"lens height {CAM_HEIGHT_CM:.0f}cm",
+                        (10, max(12, cy - 8)), cv2.FONT_HERSHEY_SIMPLEX,
+                        0.42, (120, 120, 120), 1, cv2.LINE_AA)
+        else:
+            # Panned so far the axis is off-screen. Height still computes,
+            # but say so rather than draw a line that is not there.
+            cv2.putText(frame, "lens axis off-screen (panned)", (10, 88),
+                        cv2.FONT_HERSHEY_SIMPLEX, 0.42, (0, 160, 255), 1,
+                        cv2.LINE_AA)
+
+    # Pan mini-map: the outer box is the whole sensor, the inner box is
+    # what you are looking at. Without this, panning around a scene you
+    # cannot fully see is disorienting.
+    if zoom_factor > 1.05:
+        mw, mh = 92, 52
+        mx, my = w - mw - 12, 58
+        cv2.rectangle(frame, (mx, my), (mx + mw, my + mh), (90, 90, 90), 1)
+        vw = max(4, int(mw / max(zoom_factor, 1e-3)))
+        vh = max(4, int(mh / max(zoom_factor, 1e-3)))
+        vx = int(mx + last_applied_pan_x * mw - vw / 2)
+        vy = int(my + last_applied_pan_y * mh - vh / 2)
+        vx = max(mx, min(vx, mx + mw - vw))
+        vy = max(my, min(vy, my + mh - vh))
+        vcol = (0, 220, 80) if not auto_zoom_enabled else (0, 160, 255)
+        cv2.rectangle(frame, (vx, vy), (vx + vw, vy + vh), vcol, 1)
+        cv2.putText(frame, "view", (mx, my - 4),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.35, (90, 90, 90), 1,
+                    cv2.LINE_AA)
+
     overlay2 = frame.copy()
     cv2.rectangle(overlay2, (0, h - 36), (w, h), (0, 0, 0), -1)
     cv2.addWeighted(overlay2, 0.55, frame, 0.45, 0, frame)
     cv2.putText(frame,
                 "=  zoom in    -  zoom out    A  auto zoom    "
-                "H  sensor    E  enc    R  reload    L  shot    S  zones    "
-                "C  clear    Q  quit",
+                "H  sensor    E  enc    D  calib dist    K  calib height    "
+                "I  info    R  reload    L  shot    S  zones    C  clear    Q  quit",
                 (10, h - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.36,
                 (150, 150, 150), 1, cv2.LINE_AA)
     return frame
+
+# ========================= DISTANCE =================================
+def _load_dist_c():
+    """Loads the distance constant and, if present, a previously solved
+    camera height. Old files with only C still load fine."""
+    global CAM_HEIGHT_CM
+    if os.path.exists(DIST_CALIB_FILE):
+        try:
+            with open(DIST_CALIB_FILE) as f:
+                data = json.load(f)
+            ver = int(data.get("version", 1))
+            if ver != DIST_CALIB_VERSION:
+                print(f"[DIST] {DIST_CALIB_FILE} is v{ver}, this build needs "
+                      f"v{DIST_CALIB_VERSION} (the units changed). Ignoring "
+                      "it. Please re-calibrate: stand at "
+                      f"{DIST_CALIB_CM:.0f} cm and press D, then press K.")
+                return DIST_C_DEFAULT, False
+            c = float(data["C"])
+            if "CAM_H" in data:
+                CAM_HEIGHT_CM = float(data["CAM_H"])
+                print(f"[DIST] loaded camera height {CAM_HEIGHT_CM:.1f} cm")
+            print(f"[DIST] loaded calibration C={c:.1f} from {DIST_CALIB_FILE}")
+            return c, True
+        except Exception as e:
+            print(f"[DIST] calibration load failed ({e}), using default")
+    return DIST_C_DEFAULT, False
+
+def _save_calib():
+    try:
+        with open(DIST_CALIB_FILE, "w") as f:
+            json.dump({"version": DIST_CALIB_VERSION, "C": DIST_C,
+                       "CAM_H": CAM_HEIGHT_CM}, f)
+        return True
+    except Exception as e:
+        print(f"[DIST] save failed: {e}")
+        return False
+
+DIST_C, DIST_CALIBRATED = _load_dist_c()
+
+def face_size_metric(box):
+    """Zoom-independent apparent face size, in DISPLAY pixels.
+
+    This is the ORIGINAL, accurate version. It measures the tracked box
+    directly and DIST_C is calibrated in the same display-pixel units,
+    so the units cancel and it is self-consistent. An earlier "fix"
+    converted this to main pixels for distance but left the tracked box
+    in display pixels, which introduced a mismatch and made every
+    reading too short. Reverted.
+
+    sqrt(width*height) so a head tilt (mostly height) or a turn (mostly
+    width) moves the estimate less than either dimension alone.
+    Normalized by the digital zoom so 2x zoom does not read as closer.
+    """
+    top, right, bottom, left = box
+    w = max(1, right - left)
+    h = max(1, bottom - top)
+    return (w * h) ** 0.5 / max(zoom_factor, 1e-3)
+
+def track_distance_cm(t):
+    m = face_size_metric(t["box"])
+    return DIST_C / m if m > 0 else None
+
+def fmt_distance(cm):
+    if cm is None:
+        return ""
+    if DIST_UNITS == "ft":
+        val = cm / 30.48
+        unit = "ft"
+    else:
+        val = cm / 100.0
+        unit = "m"
+    tilde = "" if DIST_CALIBRATED else "~"
+    return f"{tilde}{val:.1f}{unit}"
+
+def focal_px():
+    """Effective focal length in display px at zoom 1, derived from the
+    distance constant: DIST_C = focal * real_face_size."""
+    return DIST_C / FACE_REAL_CM
+
+def update_speed(t, dt):
+    """Real-world speed in ft/s, combining lateral motion (across the
+    frame) with radial motion (toward or away from the camera).
+
+    Lateral uses the face as an on-screen ruler: a face spans about
+    FACE_REAL_CM, so cm-per-pixel = FACE_REAL_CM / face_px. Zoom
+    cancels because both are measured on the same image, which means
+    this stays correct while the camera is zooming.
+    Radial is simply the rate of change of the distance estimate.
+
+    The tracker stores velocity in px/sec already, so no dt division
+    here. Accuracy depends on the box holding lock, which is why the
+    tracker coasts through failed matches instead of freezing."""
+    if dt <= 0:
+        return
+    top, right, bottom, left = t["box"]
+    face_px = ((right - left) * (bottom - top)) ** 0.5
+    if face_px <= 1:
+        return
+    cm_per_px = FACE_REAL_CM / face_px
+
+    # Lateral: tracker velocity is already px/sec.
+    lat_cm_s = ((t.get("vx", 0.0) ** 2 + t.get("vy", 0.0) ** 2) ** 0.5) \
+        * cm_per_px
+
+    # Radial: change in estimated distance over time.
+    rad_cm_s = 0.0
+    d_now = t.get("dist_cm")
+    d_prev = t.get("_d_prev")
+    if d_now is not None and d_prev is not None:
+        rad_cm_s = abs(d_now - d_prev) / dt
+    if d_now is not None:
+        t["_d_prev"] = d_now
+
+    total_cm_s = (lat_cm_s ** 2 + rad_cm_s ** 2) ** 0.5
+    ft_s = total_cm_s / 30.48
+    prev = t.get("speed")
+    t["speed"] = ft_s if prev is None else prev + (ft_s - prev) * SPEED_SMOOTH
+
+def fmt_speed(t):
+    s = t.get("speed")
+    if s is None:
+        return ""
+    if s < SPEED_MIN_SHOW:
+        return "still"
+    return f"{s:.1f}ft/s"
+
+def optical_axis_frac():
+    """Optical axis position as a fraction of frame height (0..1).
+
+    The axis is the SENSOR CENTRE, not the image centre. They coincide
+    only when the crop sits at the middle of the sensor. Auto-zoom pans
+    the crop, which slides the axis away from the middle of the frame,
+    and the offset grows with zoom.
+
+    This mirrors apply_zoom()'s math exactly, including the clamp at the
+    sensor edges, then applies the vertical flip from the camera
+    Transform. Getting any of those three wrong throws height off by a
+    foot or more once zoomed.
+    """
+    try:
+        fw, fh = picam2.camera_properties["PixelArraySize"]
+    except Exception:
+        return 0.5
+    z = max(zoom_factor, 1e-3)
+    ch = int(fh / z)
+    cy = int(last_applied_pan_y * fh - ch / 2)
+    cy = max(0, min(cy, fh - ch))        # same clamp apply_zoom uses
+    if ch <= 0:
+        return 0.5
+    v = (fh / 2.0 - cy) / float(ch)      # sensor centre within the crop
+    if VFLIP:
+        v = 1.0 - v                      # the image is flipped vertically
+    return v
+
+def optical_axis_y():
+    """Optical axis in DISPLAY pixels (for drawing the overlay line)."""
+    return DISPLAY_H * optical_axis_frac()
+
+def optical_axis_y_main():
+    """Optical axis in MAIN pixels (for the height maths)."""
+    return MAIN_H * optical_axis_frac()
+
+def update_height(t):
+    """Standing height from the pinhole projection of the head top.
+
+    For a LEVEL camera at CAM_HEIGHT_CM, a point at distance d whose
+    real height above the floor is Y projects dy px from the OPTICAL
+    AXIS, where dy = zoom * focal * (Y - CAM_HEIGHT_CM) / d.
+    Solve for Y. Assumes the camera is not tilted. A tilted camera
+    makes this wrong, and the reading is only as good as CAM_HEIGHT_CM.
+    """
+    d = t.get("dist_cm")
+    if d is None:
+        return
+    f = focal_px()
+    if f <= 0:
+        return
+    # Work entirely in MAIN pixels from the raw detector box, matching
+    # the units of focal_px(). Going via the display box would reintroduce
+    # the aspect/scaling factor that made distance unreliable.
+    m_box = t.get("m_box")
+    if m_box is None:
+        return
+    mt, mr, mb, ml = m_box
+    z = max(t.get("m_zoom", zoom_factor), 1e-3)
+    # Head top is above the detector box (which starts at the eyebrows).
+    # Not clamped: clamping would pretend a head near the top edge sits
+    # at y=0 and silently under-read height.
+    head_top = mt - (mb - mt) * BOX_EXPAND_TOP
+    # If the detected face is jammed against the top edge the head really
+    # is cut off, so its position is unknown. Say nothing rather than
+    # guess low.
+    if mt <= 1:
+        return
+    dy = optical_axis_y_main() - head_top     # +ve when above the axis
+    y_cm = CAM_HEIGHT_CM + dy * d / (z * f)
+    if not (30.0 < y_cm < 260.0):         # reject nonsense
+        return
+    prev = t.get("height_cm")
+    t["height_cm"] = y_cm if prev is None else \
+        prev + (y_cm - prev) * HEIGHT_SMOOTH
+
+def fmt_height(t):
+    cm = t.get("height_cm")
+    if cm is None:
+        return ""
+    if DIST_UNITS == "ft":
+        inches = cm / 2.54
+        ft = int(inches // 12)
+        inch = int(round(inches - ft * 12))
+        if inch == 12:
+            ft += 1
+            inch = 0
+        return f"{ft}'{inch}\""
+    return f"{cm / 100.0:.2f}m"
+
+def fmt_ag(t):
+    """Median age and majority gender over the last AGE_VOTE_LEN reads.
+    A single genderage inference jitters by several years, so voting
+    gives a number that holds still enough to be worth showing."""
+    ah = t.get("age_hist")
+    gh = t.get("gender_hist")
+    if not ah:
+        ag = t.get("ag")
+        if not ag or ag[0] is None:
+            return ""
+        return f"{ag[1] or ''}{ag[0]}"
+    vals = sorted(ah)
+    age = vals[len(vals) // 2]
+    gender = Counter(gh).most_common(1)[0][0] if gh else ""
+    return f"{gender}{age}"
+
+def calibrate_cam_height():
+    """Solve CAM_HEIGHT_CM from a person of known height (MY_HEIGHT_CM).
+
+    The height formula is:
+        Y = CAM_HEIGHT_CM + dy * d / (zoom * focal)
+    Everything except CAM_HEIGHT_CM is measured, and Y is known, so:
+        CAM_HEIGHT_CM = Y - dy * d / (zoom * focal)
+
+    Requires the distance calibration (D) first, since focal comes from
+    it. Stand upright on the same floor the camera sits on, facing the
+    camera, then press K."""
+    global CAM_HEIGHT_CM
+    if not DIST_CALIBRATED:
+        print("[HEIGHT] calibrate distance first: stand at "
+              f"{DIST_CALIB_CM:.0f} cm and press D")
+        return
+    if not tracked_faces:
+        print("[HEIGHT] calibrate: no face on screen")
+        return
+    t = max(tracked_faces, key=lambda x: (x["box"][2] - x["box"][0]) *
+                                          (x["box"][1] - x["box"][3]))
+    d = t.get("dist_cm")
+    if d is None:
+        print("[HEIGHT] calibrate: no distance reading yet")
+        return
+    f = focal_px()
+    if f <= 0:
+        print("[HEIGHT] calibrate: bad focal length")
+        return
+    # Raw main-frame box and its zoom, matching update_height() exactly.
+    m_box = t.get("m_box")
+    if m_box is None:
+        print("[HEIGHT] calibrate: no detection for that face yet")
+        return
+    mt, mr, mb, ml = m_box
+    if mt <= 1:
+        print("[HEIGHT] calibrate: your head is cut off at the top of the "
+              "frame. Step back or tilt down, then press K again.")
+        return
+    z = max(t.get("m_zoom", zoom_factor), 1e-3)
+    head_top = mt - (mb - mt) * BOX_EXPAND_TOP
+    dy = optical_axis_y_main() - head_top
+    CAM_HEIGHT_CM = MY_HEIGHT_CM - dy * d / (z * f)
+    # Clear cached heights so every track re-reads with the new value.
+    for tr in tracked_faces:
+        tr.pop("height_cm", None)
+    ok = _save_calib()
+    print(f"[HEIGHT] camera height solved: {CAM_HEIGHT_CM:.1f} cm "
+          f"({CAM_HEIGHT_CM / 2.54:.1f} in) from a "
+          f"{MY_HEIGHT_CM:.0f} cm person at {d:.0f} cm"
+          + ("" if ok else " (not saved)"))
+    if not (10.0 < CAM_HEIGHT_CM < 250.0):
+        print("[HEIGHT] that value looks wrong. Check MY_HEIGHT_CM, and "
+              "make sure the distance calibration is good.")
+
+def calibrate_distance():
+    """Set DIST_C from the largest tracked face, assuming it is standing
+    at DIST_CALIB_CM. Saves so it persists across runs.
+
+    Uses the RAW detector box, not the tracked one. The tracked box eases
+    toward the detected size, so calibrating against it a moment too
+    early baked a 20%+ error into DIST_C and every distance inherited it.
+    """
+    global DIST_C, DIST_CALIBRATED
+    if not tracked_faces:
+        print("[DIST] calibrate: no face on screen")
+        return
+    t = max(tracked_faces, key=lambda x: (x["box"][2] - x["box"][0]) *
+                                          (x["box"][1] - x["box"][3]))
+    # Guard only: refuse to calibrate against a face the detector has not
+    # confirmed recently, so you cannot calibrate against where you were
+    # a moment ago. The measurement itself uses the same display box the
+    # readout uses, which is what makes it self-consistent.
+    age = time.time() - t.get("seen_time", 0.0)
+    if age > 1.5:
+        print(f"[DIST] calibrate: last detection was {age:.1f}s ago. "
+              "Face the camera, hold still, press D again")
+        return
+    m = face_size_metric(t["box"])
+    if m <= 0:
+        print("[DIST] calibrate: bad face size")
+        return
+    DIST_C = DIST_CALIB_CM * m
+    DIST_CALIBRATED = True
+    ok = _save_calib()
+    print(f"[DIST] calibrated at {DIST_CALIB_CM:.0f} cm, C={DIST_C:.0f}"
+          + (f", saved to {DIST_CALIB_FILE}" if ok else " (not saved)"))
+    print(f"[DIST] next: set MY_HEIGHT_CM ({MY_HEIGHT_CM:.0f} cm now), "
+          "stand upright in view, press K to solve camera height")
+
+def shift_tracks_and_cache(dx_view, dy_view):
+    """Slide existing tracks and cached identities to follow a pan.
+
+    Panning does not make the scene unknown, it just moves it by a known
+    amount, so throwing tracks and embeddings away (the old behaviour)
+    was needless. It also made panning useless in practice: holding an
+    arrow key repeats, which cleared the identity cache every frame, so
+    recognition could never finish and you stayed unidentified.
+
+    If the view moves right, content moves LEFT on screen by the same
+    amount, hence the sign flip.
+    """
+    dx_disp = -dx_view * DISPLAY_W
+    dy_disp = -dy_view * DISPLAY_H
+    for t in tracked_faces:
+        top, right, bottom, left = t["box"]
+        t["box"] = (int(top + dy_disp), int(right + dx_disp),
+                    int(bottom + dy_disp), int(left + dx_disp))
+        # The template is still valid: it is the same face, just moved.
+    dx_main = -dx_view * MAIN_W
+    dy_main = -dy_view * MAIN_H
+    with cache_lock:
+        for e in identity_cache:
+            e["cx"] += dx_main
+            e["cy"] += dy_main
+
+def manual_pan(dx_view, dy_view):
+    """Slide the crop around inside the sensor. dx/dy are in units of the
+    current VIEW (1.0 = one full screen width), so a press moves the
+    picture the same amount on screen at any zoom.
+
+    Sign convention is taken from the auto-pan code, which is known to
+    work: there, a face at fx > 0.5 (right of centre) raises pan_x, so
+    increasing pan_x moves the view RIGHT. Same for pan_y and down.
+    """
+    global pan_current_x, pan_current_y, auto_zoom_enabled
+    global last_applied_pan_x, last_applied_pan_y
+    global auto_zoom_current
+
+    if auto_zoom_enabled:
+        # Auto-pan would immediately steer back to a face and fight the
+        # keys, so hand control over.
+        auto_zoom_enabled = False
+        auto_zoom_current = zoom_factor
+        print("Auto zoom: OFF (manual pan)")
+
+    if PAN_INVERT_X:
+        dx_view = -dx_view
+    if PAN_INVERT_Y:
+        dy_view = -dy_view
+
+    # A view is 1/zoom of the sensor, so a step of dx_view screens is
+    # dx_view/zoom in sensor fractions.
+    z = max(zoom_factor, 1e-3)
+    before_x, before_y = pan_current_x, pan_current_y
+    pan_current_x = pan_clamp(pan_current_x + dx_view / z)
+    pan_current_y = pan_clamp(pan_current_y + dy_view / z)
+
+    # Only shift by the pan that actually happened. At a sensor edge the
+    # clamp eats some or all of it, and shifting by the requested amount
+    # instead of the real one would slide the boxes off the faces.
+    actual_dx = (pan_current_x - before_x) * z
+    actual_dy = (pan_current_y - before_y) * z
+    if actual_dx == 0.0 and actual_dy == 0.0:
+        return                      # at the edge, nothing moved
+
+    apply_zoom(zoom_factor, pan_current_x, pan_current_y)
+    last_applied_pan_x = pan_current_x
+    last_applied_pan_y = pan_current_y
+    shift_tracks_and_cache(actual_dx, actual_dy)
+
+def center_pan():
+    """Snap the view back to the middle of the sensor."""
+    global pan_current_x, pan_current_y
+    global last_applied_pan_x, last_applied_pan_y
+    z = max(zoom_factor, 1e-3)
+    dx = (0.5 - pan_current_x) * z
+    dy = (0.5 - pan_current_y) * z
+    pan_current_x = 0.5
+    pan_current_y = 0.5
+    apply_zoom(zoom_factor, 0.5, 0.5)
+    last_applied_pan_x = 0.5
+    last_applied_pan_y = 0.5
+    shift_tracks_and_cache(dx, dy)
+    print("View re-centred")
+
+def pan_limits():
+    """How much room is left to pan, as a fraction of the sensor.
+    Zero at 1x zoom, because the crop already covers everything."""
+    z = max(zoom_factor, 1e-3)
+    if z <= 1.0:
+        return 0.0
+    return (1.0 - 1.0 / z) / 2.0
+
+def pan_clamp(v):
+    """Clamp a pan value to what the crop can actually honour.
+
+    apply_zoom() clamps the CROP at the sensor edges, so pan values
+    beyond that range have no effect on screen. Storing them anyway
+    causes windup: hold right at the edge and pan_x climbs to 1.0, then
+    the first several left presses do nothing while it unwinds. Clamping
+    to the legal range keeps the stored value and the picture in step.
+    """
+    lim = pan_limits()
+    return max(0.5 - lim, min(0.5 + lim, v))
+
+def scale_cache_for_zoom(z_old, z_new):
+    """Rescale cached identity positions when the zoom changes.
+
+    Zooming magnifies the view about its centre, so a face at main
+    coords (cx, cy) moves outward from the centre by the zoom ratio.
+    Rescaling the cache instead of clearing it means your name survives
+    a zoom press, rather than needing a fresh 1-2s embedding every time
+    you touch the zoom.
+    """
+    if z_old <= 0 or z_new <= 0:
+        return
+    r = z_new / z_old
+    ccx, ccy = MAIN_W / 2.0, MAIN_H / 2.0
+    with cache_lock:
+        for e in identity_cache:
+            e["cx"] = ccx + (e["cx"] - ccx) * r
+            e["cy"] = ccy + (e["cy"] - ccy) * r
+            e["h"] = e["h"] * r
+
+def zoom_to(new_zoom):
+    """Manual zoom that keeps looking where you are already looking.
+
+    The old code slammed pan back to centre on every zoom press, so
+    lining someone up with the pan keys and then zooming threw the aim
+    away and re-centred on the middle of the sensor. Zoom should be
+    about the current view, not the sensor centre.
+    """
+    global zoom_factor, auto_zoom_enabled, auto_zoom_current
+    global pan_current_x, pan_current_y
+    global last_applied_zoom, last_applied_pan_x, last_applied_pan_y
+    global pan_target_x_abs, pan_target_y_abs, tracked_faces
+
+    z_old = zoom_factor
+    auto_zoom_enabled = False
+    zoom_factor = new_zoom
+    auto_zoom_current = zoom_factor
+
+    # Keep the current aim. Re-clamp because zooming OUT shrinks the
+    # legal pan range and the old value may now sit outside it.
+    pan_current_x = pan_clamp(pan_current_x)
+    pan_current_y = pan_clamp(pan_current_y)
+    pan_target_x_abs = pan_current_x
+    pan_target_y_abs = pan_current_y
+    last_applied_zoom = zoom_factor
+    last_applied_pan_x = pan_current_x
+    last_applied_pan_y = pan_current_y
+
+    update_zoom_full(zoom_factor, pan_current_x, pan_current_y)
+
+    # Faces change size, so the templates are the wrong scale and the
+    # tracks must rebuild. Identities are kept: rescaling the cache lets
+    # the new tracks pick their names straight back up.
+    scale_cache_for_zoom(z_old, zoom_factor)
+    tracked_faces = []
+    maybe_switch_sensor()
+
+# ==================== PORTABLE / BROWSER STREAM ======================
+if HEADLESS is None:
+    HEADLESS = not os.environ.get("DISPLAY")
+
+_jpeg_lock = Lock()
+_latest_jpeg = None
+web_keys = Queue()
+web_zone_q = Queue()
+
+def publish_frame(frame):
+    """Encode the composited frame for the browser. No rate limit for
+    this first full-quality test; STREAM_MAX_FPS caps the reader side."""
+    global _latest_jpeg
+    if not STREAM_ENABLED:
+        return
+    ok, buf = cv2.imencode(".jpg", frame,
+                           [int(cv2.IMWRITE_JPEG_QUALITY), STREAM_QUALITY])
+    if ok:
+        with _jpeg_lock:
+            _latest_jpeg = buf.tobytes()
+
+PAGE = """<!DOCTYPE html><html><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Face Recognition</title><style>
+body{background:#111;color:#ddd;font-family:system-ui,sans-serif;margin:0;padding:10px}
+#wrap{max-width:1024px;margin:0 auto}
+#vid{position:relative;display:inline-block;width:100%;touch-action:none}
+img{width:100%;display:block;border:1px solid #333;border-radius:6px}
+#sel{position:absolute;border:2px solid #0dd;background:rgba(0,220,220,.15);display:none;pointer-events:none}
+.row{margin:8px 0}
+button{background:#222;color:#ddd;border:1px solid #444;border-radius:6px;
+padding:11px 13px;margin:3px;font-size:15px;cursor:pointer;min-width:48px}
+button:active{background:#0a84ff;border-color:#0a84ff}
+.lbl{color:#888;font-size:12px;margin-right:6px}
+.pan{display:grid;grid-template-columns:repeat(3,52px);gap:4px;width:max-content}
+</style></head><body><div id="wrap">
+<div id="vid"><img id="f" src="/stream"><div id="sel"></div></div>
+<div class="row"><span class="lbl">look around</span></div>
+<div class="pan">
+<span></span><button onclick="k('t')">&uarr;</button><span></span>
+<button onclick="k('f')">&larr;</button><button onclick="k('v')">&#9679;</button><button onclick="k('g')">&rarr;</button>
+<span></span><button onclick="k('b')">&darr;</button><span></span></div>
+<div class="row"><span class="lbl">zoom</span>
+<button onclick="k('=')">+</button><button onclick="k('-')">&minus;</button>
+<button onclick="k('a')">auto</button><button onclick="k('h')">sensor</button></div>
+<div class="row"><span class="lbl">calib</span>
+<button onclick="k('d')">dist</button><button onclick="k('k')">height</button>
+<button onclick="k('e')">enc</button><button onclick="k('i')">info</button></div>
+<div class="row"><span class="lbl">tools</span>
+<button onclick="k('r')">reload</button><button onclick="k('l')">shot</button>
+<button onclick="k('c')">clear zones</button></div>
+<div class="row"><span class="lbl">drag on the video to draw a scan zone</span></div>
+</div><script>
+function k(x){fetch('/key?k='+encodeURIComponent(x));}
+var img=document.getElementById('f'),sel=document.getElementById('sel'),
+    box=document.getElementById('vid'),sx=0,sy=0,drag=false;
+function pos(e){var r=img.getBoundingClientRect();
+  var t=e.touches?e.touches[0]:e;
+  return [(t.clientX-r.left)/r.width,(t.clientY-r.top)/r.height];}
+function down(e){var p=pos(e);sx=p[0];sy=p[1];drag=true;
+  sel.style.display='block';sel.style.left=(sx*100)+'%';sel.style.top=(sy*100)+'%';
+  sel.style.width='0';sel.style.height='0';e.preventDefault();}
+function move(e){if(!drag)return;var p=pos(e);
+  sel.style.left=(Math.min(sx,p[0])*100)+'%';sel.style.top=(Math.min(sy,p[1])*100)+'%';
+  sel.style.width=(Math.abs(p[0]-sx)*100)+'%';sel.style.height=(Math.abs(p[1]-sy)*100)+'%';
+  e.preventDefault();}
+function up(e){if(!drag)return;drag=false;sel.style.display='none';
+  var p=pos(e.changedTouches?{touches:e.changedTouches}:e);
+  fetch('/zone?x1='+sx+'&y1='+sy+'&x2='+p[0]+'&y2='+p[1]);}
+box.addEventListener('mousedown',down);window.addEventListener('mousemove',move);
+window.addEventListener('mouseup',up);
+box.addEventListener('touchstart',down);box.addEventListener('touchmove',move);
+box.addEventListener('touchend',up);
+document.addEventListener('keydown',function(e){
+  var m={ArrowUp:'t',ArrowLeft:'f',ArrowRight:'g',ArrowDown:'b'};
+  if(m[e.key]){k(m[e.key]);e.preventDefault();}
+  else if('=-avhdkeirlc'.includes(e.key)) k(e.key);});
+</script></body></html>"""
+
+class StreamHandler(BaseHTTPRequestHandler):
+    def log_message(self, *a):
+        pass
+
+    def do_GET(self):
+        u = urlparse(self.path)
+        if u.path == "/":
+            body = PAGE.encode()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+        elif u.path == "/key":
+            q = parse_qs(u.query).get("k", [""])[0]
+            if q:
+                web_keys.put(q[0])
+            self.send_response(204)
+            self.end_headers()
+        elif u.path == "/zone":
+            q = parse_qs(u.query)
+            try:
+                x1 = float(q["x1"][0]); y1 = float(q["y1"][0])
+                x2 = float(q["x2"][0]); y2 = float(q["y2"][0])
+                web_zone_q.put((
+                    int(min(x1, x2) * DISPLAY_W), int(min(y1, y2) * DISPLAY_H),
+                    int(max(x1, x2) * DISPLAY_W), int(max(y1, y2) * DISPLAY_H)))
+            except Exception:
+                pass
+            self.send_response(204)
+            self.end_headers()
+        elif u.path == "/stream":
+            self.send_response(200)
+            self.send_header("Age", "0")
+            self.send_header("Cache-Control", "no-cache, private")
+            self.send_header("Content-Type",
+                             "multipart/x-mixed-replace; boundary=FRAME")
+            self.end_headers()
+            try:
+                while True:
+                    with _jpeg_lock:
+                        buf = _latest_jpeg
+                    if buf is None:
+                        time.sleep(0.05)
+                        continue
+                    self.wfile.write(b"--FRAME\r\n")
+                    self.send_header("Content-Type", "image/jpeg")
+                    self.send_header("Content-Length", str(len(buf)))
+                    self.end_headers()
+                    self.wfile.write(buf)
+                    self.wfile.write(b"\r\n")
+                    time.sleep(1.0 / max(1, STREAM_MAX_FPS))
+            except Exception:
+                pass
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+def _local_ip():
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(("8.8.8.8", 80))
+        return s.getsockname()[0]
+    except Exception:
+        return "127.0.0.1"
+    finally:
+        s.close()
+
+def start_stream_server():
+    if not STREAM_ENABLED:
+        return
+    try:
+        srv = ThreadingHTTPServer(("0.0.0.0", STREAM_PORT), StreamHandler)
+        srv.daemon_threads = True
+        Thread(target=srv.serve_forever, daemon=True).start()
+        print(f"[STREAM] open  http://{_local_ip()}:{STREAM_PORT}  "
+              "on any device on this network")
+    except Exception as e:
+        print(f"[STREAM] could not start on port {STREAM_PORT}: {e}")
+
+def get_key_web():
+    """A key pressed in the browser, or None."""
+    try:
+        return web_keys.get_nowait()
+    except Empty:
+        return None
+
+def drain_web_zones():
+    added = False
+    while True:
+        try:
+            z = web_zone_q.get_nowait()
+        except Empty:
+            break
+        if z[2] - z[0] > 20 and z[3] - z[1] > 20 and len(zones) < MAX_ZONES:
+            zones.append(z)
+            added = True
+            print(f"Zone {len(zones)} set from browser")
+    return added
+
+def show(frame):
+    """Send the composited frame to the window, the browser, or both."""
+    if not HEADLESS:
+        cv2.imshow("Face Recognition", frame)
+    publish_frame(frame)
 
 # ========================= SCREENSHOT ================================
 def save_screenshot(frame):
@@ -1537,14 +2953,21 @@ def calculate_fps():
     return fps
 
 # ============================ MAIN LOOP ==============================
+start_stream_server()
 print("[INFO] starting...")
 print(f"[INFO] Sensor: BINNED {SENSOR_BINNED} <-> FULL request "
       f"{SENSOR_FULL} capped at {SENSOR_MAX_REQ} "
       f"(auto-switch at {ZOOM_FULLRES_ON}x zoom, native {SENSOR_NATIVE})")
 print(f"[INFO] Far encodings: "
       f"{'loaded' if HAS_FAR_ENCODINGS else 'NOT FOUND - using close'}")
-print("Controls: = zoom in | - zoom out | A auto zoom | H sensor mode | "
-      "E encodings | R reload | L screenshot | S zones | C clear | Q quit")
+print("Controls:")
+print("  LOOK AROUND  T/F/G/B = up/left/right/down | V re-centre")
+print("               (arrow keys and 8/4/6/2 also work)")
+print("               zoom in first: at 1.0x there is nowhere to pan")
+print("  ZOOM         = in | - out | A auto zoom on/off")
+print("  CALIB        D distance (stand at 1m) | K camera height")
+print("  OTHER        H sensor | E encodings | I info | R reload")
+print("               L screenshot | S zones | C clear | Q quit")
 
 while True:
     if selection_mode:
@@ -1552,8 +2975,14 @@ while True:
             frozen_main = picam2.capture_array("main").copy()
             frozen_display = cv2.resize(frozen_main, (DISPLAY_W, DISPLAY_H),
                                         interpolation=cv2.INTER_AREA)
-        cv2.imshow("Face Recognition", render_selection_frame())
-        key = cv2.waitKey(15) & 0xFF
+        show(render_selection_frame())
+        if HEADLESS:
+            time.sleep(0.015); key = 255
+        else:
+            key = cv2.waitKey(15) & 0xFF
+        web = get_key_web()
+        if web is not None:
+            key = ord(web)
         if key in (ord('s'), ord('S'), 27):
             selection_mode = False
             frozen_main = None
@@ -1571,8 +3000,9 @@ while True:
 
     display_raw = picam2.capture_array("lores")
     display_frame = cv2.cvtColor(display_raw, LORES_COLOR)
-    display_frame = cv2.resize(display_frame, (DISPLAY_W, DISPLAY_H),
-                               interpolation=cv2.INTER_LINEAR)
+    if display_frame.shape[1] != DISPLAY_W or display_frame.shape[0] != DISPLAY_H:
+        display_frame = cv2.resize(display_frame, (DISPLAY_W, DISPLAY_H),
+                                   interpolation=cv2.INTER_LINEAR)
 
     # Feed the worker a fresh MAIN frame the moment the previous pass
     # finishes. Detection-only passes are fast, so boxes stay current.
@@ -1583,7 +3013,7 @@ while True:
         with main_frame_lock:
             latest_main_frame = main_frame
             latest_frame_meta = (zoom_factor, last_applied_pan_x,
-                                 last_applied_pan_y)
+                                 last_applied_pan_y, time.time())
         processing = True
 
     if auto_zoom_enabled and not zones:
@@ -1604,11 +3034,19 @@ while True:
             pan_result = compute_auto_pan(steer)
             if pan_result is not None:
                 fx, fy = pan_result
-                mz, mpx, mpy = meta
+                mz, mpx, mpy, _cap = meta
                 # Convert to an absolute sensor-space target using the
                 # crop in effect when THAT frame was captured.
-                pan_target_x_abs = mpx + (fx - 0.5) / max(mz, 1.0)
-                pan_target_y_abs = mpy + (fy - 0.5) / max(mz, 1.0)
+                #
+                # SIGN: ScalerCrop lives in fixed sensor coordinates, but
+                # Transform flips the OUTPUT image. So with a flip, moving
+                # the crop one way moves the view the other way, and the
+                # feedback has to invert or the pan chases away from the
+                # face and slams into the clamp.
+                ex = -(fx - 0.5) if HFLIP else (fx - 0.5)
+                ey = -(fy - 0.5) if VFLIP else (fy - 0.5)
+                pan_target_x_abs = mpx + ex / max(mz, 1.0)
+                pan_target_y_abs = mpy + ey / max(mz, 1.0)
                 pan_target_x_abs = max(0.0, min(1.0, pan_target_x_abs))
                 pan_target_y_abs = max(0.0, min(1.0, pan_target_y_abs))
             else:
@@ -1618,8 +3056,10 @@ while True:
         auto_zoom_current += (auto_zoom_target - auto_zoom_current) * 0.08
         pan_current_x += (pan_target_x_abs - pan_current_x) * 0.08
         pan_current_y += (pan_target_y_abs - pan_current_y) * 0.08
-        pan_current_x = max(0.0, min(1.0, pan_current_x))
-        pan_current_y = max(0.0, min(1.0, pan_current_y))
+        # Clamp to what the crop can actually do, not 0..1, or auto-pan
+        # winds up at the edges and takes a moment to respond coming back.
+        pan_current_x = pan_clamp(pan_current_x)
+        pan_current_y = pan_clamp(pan_current_y)
 
         zoom_changed = abs(auto_zoom_current - last_applied_zoom) > 0.05
         pan_changed = (abs(pan_current_x - last_applied_pan_x) > 0.01 or
@@ -1652,45 +3092,52 @@ while True:
                     cv2.FONT_HERSHEY_SIMPLEX, 1.2, (255, 255, 255), 3,
                     cv2.LINE_AA)
 
-    cv2.imshow("Face Recognition", display_frame)
+    show(display_frame)
 
-    key = cv2.waitKey(1) & 0xFF
+    # Zones drawn by dragging on the browser video.
+    if drain_web_zones():
+        tracked_faces = []
+        cache_reset = True
+
+    # Local keys from the window (arrow codes survive waitKeyEx), plus
+    # any key pressed in the browser. Headless still needs a short wait
+    # to yield the CPU even with no window.
+    if HEADLESS:
+        time.sleep(0.004)
+        raw = -1
+    else:
+        raw = cv2.waitKeyEx(1)
+    key = (raw & 0xFF) if raw != -1 else 255
+    web = get_key_web()
+    if web is not None:
+        key = ord(web)          # a browser press overrides this frame
+
+    # ---- manual pan: T/F/G/B, arrows, or numpad 8/4/6/2, V/5 centre ----
+    if raw in PAN_KEYS_UP or key in (ord('8'), ord('t'), ord('T')):
+        manual_pan(0.0, -PAN_STEP)
+        continue
+    if raw in PAN_KEYS_DOWN or key in (ord('2'), ord('b'), ord('B')):
+        manual_pan(0.0, PAN_STEP)
+        continue
+    if raw in PAN_KEYS_LEFT or key in (ord('4'), ord('f'), ord('F')):
+        manual_pan(-PAN_STEP, 0.0)
+        continue
+    if raw in PAN_KEYS_RIGHT or key in (ord('6'), ord('g'), ord('G')):
+        manual_pan(PAN_STEP, 0.0)
+        continue
+    if key in (ord('5'), ord('v'), ord('V')):
+        center_pan()
+        continue
 
     if key in (ord('l'), ord('L')):
         if save_screenshot(clean_frame) is not None:
             screenshot_flash_until = time.time() + 0.5
 
     elif key == ord('='):
-        auto_zoom_enabled = False
-        zoom_factor = min(zoom_factor + 0.5, 8.0)
-        auto_zoom_current = zoom_factor
-        pan_current_x = 0.5
-        pan_current_y = 0.5
-        last_applied_zoom = zoom_factor
-        last_applied_pan_x = 0.5
-        last_applied_pan_y = 0.5
-        pan_target_x_abs = 0.5
-        pan_target_y_abs = 0.5
-        update_zoom_full(zoom_factor, 0.5, 0.5)
-        tracked_faces = []
-        cache_reset = True
-        maybe_switch_sensor()
+        zoom_to(min(zoom_factor + 0.5, 8.0))
 
     elif key == ord('-'):
-        auto_zoom_enabled = False
-        zoom_factor = max(zoom_factor - 0.5, 1.0)
-        auto_zoom_current = zoom_factor
-        pan_current_x = 0.5
-        pan_current_y = 0.5
-        last_applied_zoom = zoom_factor
-        last_applied_pan_x = 0.5
-        last_applied_pan_y = 0.5
-        pan_target_x_abs = 0.5
-        pan_target_y_abs = 0.5
-        update_zoom_full(zoom_factor, 0.5, 0.5)
-        tracked_faces = []
-        cache_reset = True
-        maybe_switch_sensor()
+        zoom_to(max(zoom_factor - 0.5, 1.0))
 
     elif key in (ord('a'), ord('A')):
         auto_zoom_enabled = not auto_zoom_enabled
@@ -1707,6 +3154,16 @@ while True:
 
     elif key in (ord('e'), ord('E')):
         cycle_encoding_mode()
+
+    elif key in (ord('d'), ord('D')):
+        calibrate_distance()
+
+    elif key in (ord('i'), ord('I')):
+        info_mode = "full" if info_mode == "basic" else "basic"
+        print(f"Info mode: {info_mode}")
+
+    elif key in (ord('k'), ord('K')):
+        calibrate_cam_height()
 
     elif key in (ord('r'), ord('R')):
         # Reload: throw away all tracks and cached identities and let
@@ -1725,10 +3182,13 @@ while True:
         print("Reload: tracks and identity cache cleared, re-detecting")
 
     elif key in (ord('s'), ord('S')):
-        selection_mode = True
-        frozen_main = None
-        frozen_display = None
-        print("Selection mode - draw zones on the frozen high-res frame")
+        if HEADLESS:
+            print("Headless: drag on the browser video to draw a zone")
+        else:
+            selection_mode = True
+            frozen_main = None
+            frozen_display = None
+            print("Selection mode - draw zones on the frozen high-res frame")
 
     elif key in (ord('c'), ord('C')):
         zones.clear()
@@ -1743,16 +3203,22 @@ cv2.destroyAllWindows()
 picam2.stop()
 ```
 
+</details>
+
 ---
 
 ### Model Training (build_encodings.py)
 
-Note: the recognition script now uses InsightFace embeddings, which are different from the older face_recognition (dlib) embeddings. Enroll people with an InsightFace based script that writes `encodings_close.pickle` and `encodings_far.pickle` in the same 512 number format the recognition script expects. The capture scripts below still work for taking the photos; only the encoding step changed.
+Note: the recognition script uses InsightFace embeddings, which are different from the older face_recognition (dlib) embeddings. Enroll people with an InsightFace based script that writes `encodings_close.pickle` and `encodings_far.pickle` in the same 512 number format the recognition script expects. The capture scripts below still work for taking the photos; only the encoding step changed.
 
 ---
 
 ### Headshot Capture (headshots_capture-picam.py)
+
 Takes training photos at 4K resolution with live preview, autofocus triggering before each shot, and a 1-second cooldown to prevent accidental double captures.
+
+<details>
+<summary><b>Click to view headshots_capture-picam.py</b></summary>
 
 ```python
 import cv2
@@ -1959,9 +3425,17 @@ if __name__ == "__main__":
     capture_photos(PERSON_NAME)
 ```
 
+</details>
+
+
 ---
+
 ### Headshot Capture (headshots_capture-far.py)
+
 Changes: starts at 2x zoom since shooting at distance, 1080p capture instead of 4K to match live feed resolution, distance rings overlay.
+
+<details>
+<summary><b>Click to view headshots_capture-far.py</b></summary>
 
 ```python
 import cv2
@@ -2178,6 +3652,11 @@ if __name__ == "__main__":
     capture_photos(PERSON_NAME)
 ```
 
+</details>
+
+
+---
+
 ## Bill of Materials
 
 | **Part** | **Note** | **Price** | **Link** |
@@ -2186,7 +3665,7 @@ if __name__ == "__main__":
 | Raspberry Pi 4 Starter Kit | Pi 4, micro SD, power supply, and case | $150 | <a href="https://www.amazon.com/CanaKit-Raspberry-4GB-Starter-Kit/dp/B07V5JTMV9">Link</a> |
 | Arducam 64MP Hawkeye | 64MP autofocus camera for long-range detection | $50 | <a href="https://www.amazon.com/Raspberry-Pi-Camera-Module/dp/B0BRY6MVXL">Link</a> |
 | Keyboard and Mouse | Controls the Pi | $15 | <a href="https://www.amazon.com/Logitech-Keyboard-Windows-Optical-Full-Size/dp/B003NREDC8">Link</a> |
-| Custom 3d printed Case | Houses the Pi | ~ | <a  href="https://cad.onshape.com/documents/c6fa1683221d288d393bb5ee/w/c7001c4204dbef570c5fb88e/e/94082adbb27febdda5911354?renderMode=0&uiState=6a5e4378b13ce118680cd69e">Link</a> |
+| Custom 3d printed Case | Houses the Pi | ~ | <a href="https://cad.onshape.com/documents/c6fa1683221d288d393bb5ee/w/c7001c4204dbef570c5fb88e/e/94082adbb27febdda5911354?renderMode=0&uiState=6a5e4378b13ce118680cd69e">Link</a> |
 
 ---
 
