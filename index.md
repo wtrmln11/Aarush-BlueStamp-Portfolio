@@ -139,7 +139,10 @@ In making this project, I learned that most of my time was spent closing the gap
 ---  
 
 ## Schematics
-
+<img src="Aarush%20H.jpeg" alt="Headstone Image" width="300" height="400">
+<img src="Aarush%20H.jpeg" alt="Headstone Image" width="300" height="400">
+<img src="Aarush%20H.jpeg" alt="Headstone Image" width="300" height="400">
+<img src="Aarush%20H.jpeg" alt="Headstone Image" width="300" height="400">
 
 
 ---
