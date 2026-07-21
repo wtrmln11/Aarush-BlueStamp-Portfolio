@@ -1,212 +1,210 @@
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Face Recognition at Distance — Aarush H</title>
+<title>Facial Recognition System — Aarush H</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,700;12..96,800&family=Public+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
 <style>
   :root{
-    --ink:#0a0e12;        /* near-black terminal ground */
-    --panel:#111820;
-    --panel-2:#0e141b;
-    --line:#1e2b36;
-    --fog:#8aa0b0;        /* muted slate text */
-    --paper:#e8eef2;      /* bright readout text */
-    --scan:#39d98a;       /* phosphor green: the detector "lock" */
-    --scan-dim:#1f6f4a;
-    --amber:#f2b134;      /* low-confidence / caution */
-    --alert:#ff5d5d;      /* unknown */
-    --cyan:#4cc9e6;       /* data / measurement */
-    --violet:#9d7bff;     /* zones */
-    --mono:'DejaVu Sans Mono',ui-monospace,'SF Mono',Menlo,Consolas,monospace;
-    --sans:'Segoe UI',system-ui,-apple-system,Helvetica,Arial,sans-serif;
+    --bg:#1a1922;         /* warm plum-charcoal, softer than black */
+    --bg-2:#211f2b;
+    --surface:#26232f;
+    --surface-2:#2d2a38;
+    --line:#38343f;
+    --line-soft:#302d3a;
+    --text:#efe9e1;       /* warm off-white */
+    --muted:#a49caf;      /* soft lavender-grey */
+    --muted-2:#7d7689;
+    --honey:#e8a860;      /* warm amber signature accent */
+    --honey-soft:#3a2f24;
+    --sky:#7fb0d8;        /* calm blue, links + data */
+    --rose:#e0798c;       /* unknown / caution, muted not neon */
+    --leaf:#8fc4a0;       /* confident lock, muted sage not acid */
+    --display:'Bricolage Grotesque',Georgia,serif;
+    --body:'Public Sans',system-ui,-apple-system,sans-serif;
   }
   *{box-sizing:border-box}
   html{scroll-behavior:smooth}
-  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}
-    *{animation:none!important;transition:none!important}}
-  body{
-    margin:0;background:var(--ink);color:var(--paper);
-    font-family:var(--sans);line-height:1.65;
-    -webkit-font-smoothing:antialiased;
-  }
-  /* faint sensor grid over everything */
-  body::before{
-    content:"";position:fixed;inset:0;z-index:0;pointer-events:none;
-    background-image:linear-gradient(var(--line) 1px,transparent 1px),
-      linear-gradient(90deg,var(--line) 1px,transparent 1px);
-    background-size:44px 44px;opacity:.15;
-    mask-image:radial-gradient(circle at 50% 30%,#000 55%,transparent 100%);
-  }
-  a{color:var(--cyan);text-decoration:none}
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{animation:none!important;transition:none!important}}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:var(--body);
+    font-size:16.5px;line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--sky);text-decoration:none}
   a:hover{text-decoration:underline}
+  h1,h2,h3{font-family:var(--display);font-weight:700;line-height:1.08;letter-spacing:-.01em}
 
-  /* scroll progress */
   #progress{position:fixed;top:0;left:0;height:3px;width:0;z-index:60;
-    background:linear-gradient(90deg,var(--scan),var(--cyan));box-shadow:0 0 10px var(--scan)}
+    background:var(--honey)}
 
-  /* ===== NAV ===== */
-  nav{position:sticky;top:0;z-index:50;background:rgba(10,14,18,.82);
-    backdrop-filter:blur(10px);border-bottom:1px solid var(--line)}
-  .nav-in{max-width:1080px;margin:0 auto;display:flex;align-items:center;
-    gap:6px;padding:10px 20px;flex-wrap:wrap}
-  .brand{font-family:var(--mono);font-size:13px;letter-spacing:.14em;
-    color:var(--scan);margin-right:auto;text-transform:uppercase;
-    display:flex;align-items:center;gap:8px}
-  .brand .dot{width:8px;height:8px;border-radius:50%;background:var(--scan);
-    box-shadow:0 0 8px var(--scan);animation:blink 2s infinite}
-  @keyframes blink{0%,100%{opacity:1}50%{opacity:.25}}
-  nav a{font-family:var(--mono);font-size:12px;color:var(--fog);
-    padding:6px 10px;border-radius:5px;letter-spacing:.04em}
-  nav a:hover{color:var(--paper);background:var(--panel);text-decoration:none}
+  /* NAV */
+  nav{position:sticky;top:0;z-index:50;background:rgba(26,25,34,.9);
+    backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+  .nav-in{max-width:1060px;margin:0 auto;display:flex;align-items:center;gap:4px;
+    padding:14px 22px;flex-wrap:wrap}
+  .brand{font-family:var(--display);font-weight:700;font-size:16px;color:var(--text);
+    margin-right:auto;letter-spacing:-.01em;display:flex;align-items:center;gap:9px}
+  .brand .dot{width:9px;height:9px;border-radius:50%;background:var(--honey)}
+  nav a{font-size:14px;color:var(--muted);padding:7px 12px;border-radius:7px}
+  nav a:hover{color:var(--text);background:var(--surface);text-decoration:none}
 
-  .wrap{max-width:1080px;margin:0 auto;padding:0 20px;position:relative;z-index:1}
+  .wrap{max-width:1060px;margin:0 auto;padding:0 22px}
 
-  /* ===== HERO ===== */
-  header.hero{position:relative;overflow:hidden;border-bottom:1px solid var(--line)}
-  .hero-grid{max-width:1080px;margin:0 auto;padding:64px 20px 52px;
-    display:grid;grid-template-columns:1.05fr .95fr;gap:40px;align-items:center}
-  @media(max-width:820px){.hero-grid{grid-template-columns:1fr;gap:28px;padding:40px 20px}}
-  .eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.22em;
-    color:var(--scan);text-transform:uppercase;margin-bottom:18px}
-  h1.title{font-size:clamp(38px,6vw,66px);line-height:1.02;margin:0 0 18px;
-    font-weight:800;letter-spacing:-.02em}
-  h1.title .thin{display:block;font-weight:300;color:var(--fog);
-    font-size:clamp(18px,2.4vw,26px);letter-spacing:.01em;margin-top:14px}
-  .lede{color:var(--fog);font-size:17px;max-width:44ch;margin:0 0 26px}
-  .cta-row{display:flex;gap:12px;flex-wrap:wrap}
-  .btn{font-family:var(--mono);font-size:13px;letter-spacing:.04em;
-    padding:12px 20px;border-radius:7px;border:1px solid var(--line);
-    color:var(--paper);background:var(--panel);cursor:pointer;transition:.15s}
-  .btn:hover{border-color:var(--scan);color:var(--scan);text-decoration:none}
-  .btn.solid{background:var(--scan);color:#04120b;border-color:var(--scan);font-weight:700}
-  .btn.solid:hover{background:#54e89b;color:#04120b}
+  /* HERO */
+  header.hero{border-bottom:1px solid var(--line-soft);background:
+    radial-gradient(90% 120% at 85% -10%,rgba(232,168,96,.10),transparent 60%)}
+  .hero-grid{max-width:1060px;margin:0 auto;padding:60px 22px 46px;
+    display:grid;grid-template-columns:1.02fr .98fr;gap:44px;align-items:center}
+  @media(max-width:840px){.hero-grid{grid-template-columns:1fr;gap:30px;padding:40px 22px}}
+  .eyebrow{font-size:13px;letter-spacing:.16em;color:var(--honey);
+    text-transform:uppercase;font-weight:600;margin-bottom:20px}
+  h1.title{font-size:clamp(40px,6.4vw,72px);margin:0 0 22px;font-weight:800;
+    letter-spacing:-.025em}
+  .lede{color:var(--muted);font-size:18px;max-width:46ch;margin:0 0 24px}
 
-  /* live scanner viewport (the signature element) */
+  /* personal info card, kept at top */
+  .idcard{display:grid;grid-template-columns:repeat(4,auto);gap:0;
+    border:1px solid var(--line);border-radius:12px;overflow:hidden;
+    background:var(--surface);width:fit-content;max-width:100%}
+  @media(max-width:560px){.idcard{grid-template-columns:repeat(2,1fr);width:100%}}
+  .idcard .cell{padding:12px 20px;border-right:1px solid var(--line)}
+  .idcard .cell:last-child{border-right:0}
+  @media(max-width:560px){.idcard .cell{border-right:1px solid var(--line);
+    border-bottom:1px solid var(--line)}}
+  .idcard .k{font-size:11px;letter-spacing:.1em;text-transform:uppercase;
+    color:var(--muted-2);margin-bottom:2px}
+  .idcard .v{font-weight:600;color:var(--text);font-size:14.5px}
+
+  .cta-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:26px}
+  .btn{font-family:var(--body);font-weight:600;font-size:15px;padding:13px 22px;
+    border-radius:9px;border:1px solid var(--line);color:var(--text);
+    background:var(--surface);cursor:pointer;transition:.15s}
+  .btn:hover{border-color:var(--honey);color:var(--text);text-decoration:none;
+    background:var(--surface-2)}
+  .btn.solid{background:var(--honey);color:#20160a;border-color:var(--honey);font-weight:700}
+  .btn.solid:hover{background:#f0b674;color:#20160a}
+
+  /* detection viewport (signature) */
   .scanner{position:relative;aspect-ratio:4/3;border:1px solid var(--line);
-    border-radius:10px;background:
-      radial-gradient(120% 120% at 50% 10%,#16212b 0%,#0b1218 70%);
-    overflow:hidden;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+    border-radius:14px;overflow:hidden;background:#15141c;
+    box-shadow:0 24px 60px rgba(0,0,0,.45)}
   .scanner canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
-  .scan-hud{position:absolute;left:12px;top:10px;font-family:var(--mono);
-    font-size:11px;color:var(--scan);letter-spacing:.1em;text-shadow:0 0 6px var(--scan-dim)}
-  .scan-hud .r{color:var(--fog)}
-  .scan-corner{position:absolute;width:18px;height:18px;border:2px solid var(--scan);opacity:.7}
-  .sc-tl{top:10px;right:12px;border-left:0;border-bottom:0}
-  .sc-br{bottom:10px;left:12px;border-right:0;border-top:0}
-  .sweep{position:absolute;left:0;right:0;height:120px;pointer-events:none;
-    background:linear-gradient(180deg,transparent,rgba(57,217,138,.12),transparent);
-    animation:sweep 3.6s linear infinite}
-  @keyframes sweep{0%{top:-120px}100%{top:100%}}
+  .scan-hud{position:absolute;left:14px;top:12px;font-family:var(--body);
+    font-size:12px;color:var(--text);letter-spacing:.02em;display:flex;
+    align-items:center;gap:8px;opacity:.9}
+  .scan-hud .rd{width:8px;height:8px;border-radius:50%;background:var(--rose);
+    animation:pulse 1.6s infinite}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+  .scan-hud .sub{color:var(--muted)}
 
-  /* stat strip */
-  .stats{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;
-    background:var(--line);border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
-  @media(max-width:640px){.stats{grid-template-columns:repeat(2,1fr)}}
-  .stat{background:var(--ink);padding:22px 18px;text-align:center}
-  .stat .n{font-family:var(--mono);font-size:30px;font-weight:700;color:var(--scan);
-    letter-spacing:-.01em}
-  .stat .l{font-size:12px;color:var(--fog);letter-spacing:.06em;margin-top:4px;
-    text-transform:uppercase}
+  /* STATS */
+  .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;
+    background:var(--line-soft);border-top:1px solid var(--line-soft);
+    border-bottom:1px solid var(--line-soft)}
+  @media(max-width:560px){.stats{grid-template-columns:1fr}}
+  .stat{background:var(--bg);padding:26px 20px;text-align:center}
+  .stat .n{font-family:var(--display);font-size:34px;font-weight:800;color:var(--honey)}
+  .stat .l{font-size:13px;color:var(--muted);letter-spacing:.03em;margin-top:2px}
 
-  /* ===== SECTIONS ===== */
-  section{padding:58px 0 8px;position:relative;z-index:1}
-  .sec-head{display:flex;align-items:baseline;gap:14px;margin-bottom:8px;
-    border-bottom:1px solid var(--line);padding-bottom:12px}
-  .sec-idx{font-family:var(--mono);font-size:13px;color:var(--scan);letter-spacing:.1em}
-  h2{font-size:clamp(24px,3.4vw,34px);margin:0;font-weight:700;letter-spacing:-.01em}
-  .sec-sub{color:var(--fog);font-size:15px;margin:14px 0 26px;max-width:64ch}
+  /* SECTIONS */
+  section{padding:62px 0 6px}
+  .sec-head{display:flex;align-items:baseline;gap:16px;margin-bottom:26px;
+    padding-bottom:14px;border-bottom:1px solid var(--line-soft)}
+  .sec-idx{font-family:var(--display);font-size:15px;color:var(--honey);font-weight:700}
+  h2{font-size:clamp(26px,3.6vw,38px);margin:0;font-weight:700}
+  .sec-sub{color:var(--muted);font-size:16px;margin:-8px 0 30px;max-width:66ch}
 
-  /* milestone timeline */
-  .track{position:relative;margin-left:8px;padding-left:28px;
-    border-left:2px solid var(--line)}
-  .mile{position:relative;padding:0 0 30px}
-  .mile::before{content:"";position:absolute;left:-36px;top:4px;width:14px;height:14px;
-    border-radius:50%;background:var(--ink);border:2px solid var(--scan);
-    box-shadow:0 0 0 4px rgba(57,217,138,.12)}
-  .mile.dim::before{border-color:var(--line);box-shadow:none}
-  .mile .tag{font-family:var(--mono);font-size:11px;letter-spacing:.14em;
-    color:var(--scan);text-transform:uppercase}
-  .mile.dim .tag{color:var(--fog)}
-  .mile h3{margin:4px 0 10px;font-size:20px}
-  .mile ul{margin:10px 0 0;padding-left:18px;color:var(--fog)}
-  .mile li{margin:6px 0}
-  .video{position:relative;aspect-ratio:16/9;margin:14px 0 4px;border-radius:8px;
-    overflow:hidden;border:1px solid var(--line);background:#000;max-width:640px}
+  /* MILESTONES — restyled, no round bullets */
+  .miles{display:grid;gap:18px}
+  .mile{background:var(--surface);border:1px solid var(--line-soft);border-radius:14px;
+    padding:24px 26px;position:relative;transition:.15s}
+  .mile:hover{border-color:var(--line)}
+  .mile.dim{background:var(--bg-2)}
+  .mile-top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:6px}
+  .mile .tag{font-family:var(--body);font-weight:700;font-size:12px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--honey);
+    background:var(--honey-soft);padding:5px 11px;border-radius:20px}
+  .mile.dim .tag{color:var(--muted);background:var(--surface)}
+  .mile h3{margin:0;font-size:22px;color:var(--text)}
+  .video{position:relative;aspect-ratio:16/9;margin:16px 0 6px;border-radius:10px;
+    overflow:hidden;border:1px solid var(--line);background:#000;max-width:600px}
   .video iframe{position:absolute;inset:0;width:100%;height:100%;border:0}
+  .points{margin:14px 0 0;display:grid;gap:0}
+  .points .pt{padding:11px 0;color:var(--muted);border-top:1px solid var(--line-soft);
+    display:grid;grid-template-columns:auto 1fr;gap:14px;align-items:start}
+  .points .pt:first-child{border-top:0}
+  .points .pt .m{color:var(--honey);font-weight:700;line-height:1.7}
 
-  /* challenge cards -> expandable */
-  .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  /* CHALLENGE CARDS */
+  .cards{display:grid;grid-template-columns:1fr 1fr;gap:14px}
   @media(max-width:720px){.cards{grid-template-columns:1fr}}
-  details.card{background:var(--panel);border:1px solid var(--line);border-radius:9px;
-    overflow:hidden;transition:border-color .15s}
-  details.card[open]{border-color:var(--scan-dim)}
-  details.card>summary{list-style:none;cursor:pointer;padding:16px 18px;
-    display:flex;align-items:center;gap:12px;font-weight:600}
+  details.card{background:var(--surface);border:1px solid var(--line-soft);
+    border-radius:12px;overflow:hidden;transition:.15s}
+  details.card[open]{border-color:var(--honey)}
+  details.card>summary{list-style:none;cursor:pointer;padding:18px 20px;
+    display:flex;align-items:center;gap:13px;font-weight:600;font-size:16px}
   details.card>summary::-webkit-details-marker{display:none}
-  .chip{font-family:var(--mono);font-size:10px;letter-spacing:.08em;padding:3px 8px;
-    border-radius:20px;border:1px solid var(--line);color:var(--fog);
+  .chip{font-size:11px;font-weight:700;letter-spacing:.06em;padding:4px 10px;
+    border-radius:20px;border:1px solid var(--line);color:var(--muted);
     text-transform:uppercase;white-space:nowrap}
-  .chip.fix{color:var(--scan);border-color:var(--scan-dim)}
-  details.card>summary .q{margin-left:auto;font-family:var(--mono);color:var(--fog);
-    transition:transform .2s}
-  details.card[open]>summary .q{transform:rotate(45deg);color:var(--scan)}
-  .card-body{padding:0 18px 18px;color:var(--fog);font-size:14.5px;
-    border-top:1px solid var(--line);margin-top:2px;padding-top:14px}
-  .card-body .p{margin:10px 0}
-  .card-body b{color:var(--paper)}
+  details.card[open] .chip{color:var(--honey);border-color:var(--honey)}
+  details.card>summary .q{margin-left:auto;color:var(--muted);font-size:22px;
+    font-family:var(--body);transition:transform .2s;line-height:1}
+  details.card[open]>summary .q{transform:rotate(45deg);color:var(--honey)}
+  .card-body{padding:4px 20px 20px;color:var(--muted);font-size:15px;
+    border-top:1px solid var(--line-soft);margin-top:2px;padding-top:16px}
+  .card-body .p{margin:11px 0}
+  .card-body b{color:var(--text)}
 
-  /* schematics gallery */
-  .gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  /* SCHEMATICS */
+  .gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
   @media(max-width:820px){.gallery{grid-template-columns:repeat(2,1fr)}}
-  .gallery figure{margin:0;border:1px solid var(--line);border-radius:8px;
-    overflow:hidden;background:var(--panel);aspect-ratio:3/4;position:relative}
+  .gallery figure{margin:0;border:1px solid var(--line-soft);border-radius:10px;
+    overflow:hidden;background:var(--surface);aspect-ratio:3/4;position:relative}
   .gallery img{width:100%;height:100%;object-fit:cover;display:block}
   .gallery .ph{position:absolute;inset:0;display:flex;align-items:center;
-    justify-content:center;font-family:var(--mono);font-size:11px;color:var(--fog);
-    letter-spacing:.1em;background:repeating-linear-gradient(45deg,#0e141b,#0e141b 10px,#111820 10px,#111820 20px)}
+    justify-content:center;font-size:12px;color:var(--muted-2);letter-spacing:.08em;
+    background:var(--bg-2)}
 
-  /* code */
-  details.code{border:1px solid var(--line);border-radius:9px;background:var(--panel-2);
-    margin:12px 0}
-  details.code>summary{list-style:none;cursor:pointer;padding:14px 18px;
-    font-family:var(--mono);font-size:13px;display:flex;align-items:center;gap:10px}
+  /* CODE */
+  details.code{border:1px solid var(--line-soft);border-radius:12px;
+    background:var(--surface);margin:14px 0}
+  details.code>summary{list-style:none;cursor:pointer;padding:16px 20px;
+    font-size:15px;display:flex;align-items:center;gap:11px;flex-wrap:wrap}
   details.code>summary::-webkit-details-marker{display:none}
-  details.code>summary .fn{color:var(--scan)}
-  details.code>summary .meta{color:var(--fog);margin-left:auto;font-size:11px}
-  .code-wrap{position:relative;border-top:1px solid var(--line)}
-  .copy{position:absolute;right:10px;top:10px;z-index:2;font-family:var(--mono);
-    font-size:11px;padding:5px 10px;border-radius:5px;border:1px solid var(--line);
-    background:var(--ink);color:var(--fog);cursor:pointer}
-  .copy:hover{color:var(--scan);border-color:var(--scan-dim)}
-  pre{margin:0;max-height:560px;overflow:auto;padding:16px 18px;
-    font-family:var(--mono);font-size:12.5px;line-height:1.55;color:#c6d4de}
+  details.code>summary .fn{font-family:var(--display);font-weight:700;color:var(--honey)}
+  details.code>summary .meta{color:var(--muted-2);margin-left:auto;font-size:13px}
+  .code-wrap{position:relative;border-top:1px solid var(--line-soft)}
+  .copy{position:absolute;right:12px;top:12px;z-index:2;font-size:12px;font-weight:600;
+    padding:6px 12px;border-radius:7px;border:1px solid var(--line);
+    background:var(--bg);color:var(--muted);cursor:pointer}
+  .copy:hover{color:var(--honey);border-color:var(--honey)}
+  pre{margin:0;max-height:560px;overflow:auto;padding:18px 20px;
+    font-family:ui-monospace,'SF Mono',Menlo,Consolas,monospace;font-size:12.5px;
+    line-height:1.6;color:#cdc6d2;background:#1d1b25}
   pre code{white-space:pre}
-  .ctrls{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 4px}
-  .key{font-family:var(--mono);font-size:11px;color:var(--paper);background:var(--panel);
-    border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:4px 8px}
-  .key b{color:var(--scan)}
+  .ctrls{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 4px}
+  .key{font-size:12px;color:var(--text);background:var(--surface);
+    border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;padding:5px 9px}
+  .key b{color:var(--honey)}
 
   /* BOM */
-  table.bom{width:100%;border-collapse:collapse;font-size:14px;margin-top:8px}
-  table.bom th,table.bom td{border:1px solid var(--line);padding:11px 12px;text-align:left}
-  table.bom th{background:var(--panel);font-family:var(--mono);font-size:12px;
-    letter-spacing:.06em;color:var(--fog);text-transform:uppercase}
+  table.bom{width:100%;border-collapse:collapse;font-size:15px;margin-top:8px}
+  table.bom th,table.bom td{border:1px solid var(--line-soft);padding:13px 14px;text-align:left}
+  table.bom th{background:var(--surface);font-size:12px;letter-spacing:.05em;
+    color:var(--muted);text-transform:uppercase;font-weight:700}
   table.bom td:last-child,table.bom th:last-child{text-align:center}
-  .price{font-family:var(--mono);color:var(--scan)}
+  .price{font-weight:700;color:var(--honey)}
 
-  footer{margin-top:60px;border-top:1px solid var(--line);padding:34px 0 60px;
-    color:var(--fog);font-family:var(--mono);font-size:12px}
-  .who{display:flex;flex-wrap:wrap;gap:8px 22px;margin-bottom:20px}
-  .who b{color:var(--paper)}
+  footer{margin-top:64px;border-top:1px solid var(--line-soft);padding:36px 0 64px;
+    color:var(--muted);font-size:14px}
 
-  /* back to top */
-  #top{position:fixed;right:20px;bottom:20px;z-index:55;width:44px;height:44px;
-    border-radius:50%;border:1px solid var(--scan-dim);background:var(--panel);
-    color:var(--scan);font-size:18px;cursor:pointer;opacity:0;pointer-events:none;
+  #top{position:fixed;right:22px;bottom:22px;z-index:55;width:46px;height:46px;
+    border-radius:50%;border:1px solid var(--line);background:var(--surface);
+    color:var(--honey);font-size:19px;cursor:pointer;opacity:0;pointer-events:none;
     transition:opacity .2s;box-shadow:0 6px 20px rgba(0,0,0,.4)}
   #top.show{opacity:1;pointer-events:auto}
-  #top:hover{background:var(--scan);color:#04120b}
+  #top:hover{background:var(--honey);color:#20160a}
 </style>
 </head>
 <body>
@@ -214,8 +212,7 @@
 
 <nav>
   <div class="nav-in">
-    <span class="brand"><span class="dot"></span>FACE-REC / PI4</span>
-    <a href="#build">Build</a>
+    <span class="brand"><span class="dot"></span>Facial Recognition System</span>
     <a href="#milestones">Milestones</a>
     <a href="#challenges">Challenges</a>
     <a href="#schematics">Schematics</a>
@@ -228,10 +225,14 @@
   <div class="hero-grid">
     <div>
       <div class="eyebrow">Computer Engineering · BlueStamp</div>
-      <h1 class="title">Knowing a face<br>from across the room
-        <span class="thin">A Raspberry Pi that recognizes people at distance, in real time, on a $50 camera.</span>
-      </h1>
-      <p class="lede">Most face recognition works when you're a foot away. This one reads a 64-megapixel sensor, zooms into the pixels a normal camera throws away, and puts a name on you from 32 feet out.</p>
+      <h1 class="title">Facial Recognition System</h1>
+      <p class="lede">A Raspberry Pi that recognizes people at a distance in real time, using a 64-megapixel camera, digital zoom, and machine learning, with live confidence scoring on every face.</p>
+      <div class="idcard">
+        <div class="cell"><div class="k">Engineer</div><div class="v">Aarush H</div></div>
+        <div class="cell"><div class="k">School</div><div class="v">Evergreen Valley High</div></div>
+        <div class="cell"><div class="k">Interest</div><div class="v">Computer Engineering</div></div>
+        <div class="cell"><div class="k">Grade</div><div class="v">Incoming Senior</div></div>
+      </div>
       <div class="cta-row">
         <a class="btn solid" href="#milestones">See how it was built</a>
         <a class="btn" href="#code">Read the code</a>
@@ -239,17 +240,13 @@
     </div>
     <div class="scanner" aria-hidden="true">
       <canvas id="sensor"></canvas>
-      <div class="sweep"></div>
-      <div class="scan-hud">● REC&nbsp;&nbsp;<span class="r">buffalo_l · 512-D · SCRFD</span></div>
-      <div class="scan-corner sc-tl"></div>
-      <div class="scan-corner sc-br"></div>
+      <div class="scan-hud"><span class="rd"></span>REC&nbsp;<span class="sub">buffalo_l · 512-D · live</span></div>
     </div>
   </div>
   <div class="stats">
-    <div class="stat"><div class="n" data-to="32" data-suf=" ft">0</div><div class="l">Detection range</div></div>
+    <div class="stat"><div class="n" data-to="10" data-suf=" m">0</div><div class="l">Detection range</div></div>
     <div class="stat"><div class="n" data-to="64" data-suf=" MP">0</div><div class="l">Camera sensor</div></div>
     <div class="stat"><div class="n" data-to="512" data-suf="-D">0</div><div class="l">Face embedding</div></div>
-    <div class="stat"><div class="n" data-to="3" data-suf="×">0</div><div class="l">Faster tracking</div></div>
   </div>
 </header>
 
@@ -257,37 +254,35 @@
 <!-- ============ MILESTONES ============ -->
 <section id="milestones">
   <div class="sec-head"><span class="sec-idx">01</span><h2>Milestones</h2></div>
-  <p class="sec-sub">The project in the order it actually happened, newest first. Each step names what worked, what surprised me, and what I aimed at next.</p>
 
-  <div class="track">
+  <div class="miles">
     <div class="mile">
-      <div class="tag">Second Milestone</div>
-      <h3>Putting names on the live feed</h3>
+      <div class="mile-top"><span class="tag">Second Milestone</span><h3>Putting names on the live feed</h3></div>
       <div class="video"><iframe src="https://www.youtube.com/embed/xFbNuY9iE_g" title="Second milestone" allowfullscreen loading="lazy"></iframe></div>
-      <ul>
-        <li>Trained the model on the dataset in Python, so the live feed shows people's names.</li>
-        <li>Surprised how much data it needs: 200 photos of 4 people could not recognize anyone past 3 feet.</li>
-        <li>Fixed an over-zoomed feed by matching resolution to the monitor, then added more people to the dataset.</li>
-        <li>Next goal: recognize someone across the classroom, around 10 meters.</li>
-      </ul>
+      <div class="points">
+        <div class="pt"><span class="m">—</span><span>Trained the model on images in the dataset using Python, allowing the live feed to show people's names</span></div>
+        <div class="pt"><span class="m">—</span><span>Surprised by how much data the model needs, only 200 pictures of 4 people in the dataset wasn't enough to allow the model to recognize people past 3 feet</span></div>
+        <div class="pt"><span class="m">—</span><span>Initially the live feed was extremely zoomed in, so I adjusted the resolution to fit the monitor and then added more people to the dataset to improve the accuracy of the model</span></div>
+        <div class="pt"><span class="m">—</span><span>The next goal is to detect a person from across the classroom, around 10 meters</span></div>
+      </div>
     </div>
+
     <div class="mile">
-      <div class="tag">First Milestone</div>
-      <h3>Capturing and organizing faces</h3>
+      <div class="mile-top"><span class="tag">First Milestone</span><h3>Capturing and organizing faces</h3></div>
       <div class="video"><iframe src="https://www.youtube.com/embed/wKA9XhxVHsE" title="First milestone" allowfullscreen loading="lazy"></iframe></div>
-      <ul>
-        <li>Built OpenCV scripts that capture photos on spacebar and sort them into named folders.</li>
-        <li>The camera was only sharp when the subject stood directly in front of it.</li>
-        <li>Some images corrupted silently, forcing me to delete whole batches with no way to tell which were bad.</li>
-        <li>Next goal: detect myself and at least one other person.</li>
-      </ul>
+      <div class="points">
+        <div class="pt"><span class="m">—</span><span>Set up OpenCV and Python scripts that capture photos on spacebar press and organize them into named folders so the model can associate names with faces</span></div>
+        <div class="pt"><span class="m">—</span><span>The quality of the camera was worse than expected only ever sharp when the subject was directly in front of it</span></div>
+        <div class="pt"><span class="m">—</span><span>Some of the captured images became corrupted silently causing me to have to mass delete entire batches of images as there was no way of knowing which were corrupted</span></div>
+        <div class="pt"><span class="m">—</span><span>Next goal is to detect myself and at least one other person</span></div>
+      </div>
     </div>
+
     <div class="mile dim">
-      <div class="tag">Starter Milestone</div>
-      <h3>Retro arcade build</h3>
-      <ul>
-        <li>Wired a battery to the board, soldered the charging port and the movement and reset buttons, then assembled it in the acrylic case.</li>
-      </ul>
+      <div class="mile-top"><span class="tag">Starter Milestone</span><h3>Retro arcade build</h3></div>
+      <div class="points">
+        <div class="pt"><span class="m">—</span><span>Built retro arcade device by connecting a battery to the metal contacts on the back of the device, soldering the side charging port and buttons (movement and reset), then finally putting it all together in the acrylic case with the screws.</span></div>
+      </div>
     </div>
   </div>
 </section>
@@ -392,10 +387,10 @@
     <figure><img src="case2.png" alt="Case schematic 2" loading="lazy"></figure>
     <figure><img src="case3.png" alt="Case schematic 3" loading="lazy"></figure>
     <figure><img src="case4.png" alt="Case schematic 4" loading="lazy"></figure>
-    <figure><div class="ph">SLOT 05</div></figure>
-    <figure><div class="ph">SLOT 06</div></figure>
-    <figure><div class="ph">SLOT 07</div></figure>
-    <figure><div class="ph">SLOT 08</div></figure>
+    <figure><div class="ph">Slot 05</div></figure>
+    <figure><div class="ph">Slot 06</div></figure>
+    <figure><div class="ph">Slot 07</div></figure>
+    <figure><div class="ph">Slot 08</div></figure>
   </div>
 </section>
 
@@ -3907,34 +3902,21 @@ if __name__ == &quot;__main__&quot;:
 </section>
 
 <footer>
-  <div class="who">
-    <span><b>Engineer</b> Aarush H</span>
-    <span><b>School</b> Evergreen Valley High School</span>
-    <span><b>Focus</b> Computer Engineering</span>
-    <span><b>Grade</b> Incoming Senior</span>
-  </div>
-  <div style="margin-bottom:8px;color:var(--fog)">More BlueStamp projects:
-    <a href="https://trashytuber.github.io/YimingJiaBlueStamp/">One</a> ·
-    <a href="https://sviatil0.github.io/Sviatoslav_BSE/">Two</a> ·
-    <a href="https://arneshkumar.github.io/arneshbluestamp/">Three</a>
-  </div>
-  <div>FACE-REC / PI4 · built on a Raspberry Pi 4 + Arducam 64MP</div>
+  <div>Facial Recognition System · built on a Raspberry Pi 4 with an Arducam 64MP camera · Aarush H, Evergreen Valley High School</div>
 </footer>
 </main>
 
 <button id="top" aria-label="Back to top">↑</button>
 
 <script>
-/* ---- scroll progress + back to top ---- */
-const prog=document.getElementById('progress'),top=document.getElementById('top');
+const prog=document.getElementById('progress'),topBtn=document.getElementById('top');
 addEventListener('scroll',()=>{
   const h=document.documentElement,sc=h.scrollTop,max=h.scrollHeight-h.clientHeight;
   prog.style.width=(max>0?sc/max*100:0)+'%';
-  top.classList.toggle('show',sc>600);
+  topBtn.classList.toggle('show',sc>600);
 },{passive:true});
-top.onclick=()=>scrollTo({top:0,behavior:'smooth'});
+topBtn.onclick=()=>scrollTo({top:0,behavior:'smooth'});
 
-/* ---- animated count-up stats ---- */
 const io=new IntersectionObserver((es)=>{es.forEach(e=>{
   if(!e.isIntersecting)return;const el=e.target,to=+el.dataset.to,suf=el.dataset.suf||'';
   let n=0;const step=Math.max(1,to/40);
@@ -3943,48 +3925,108 @@ const io=new IntersectionObserver((es)=>{es.forEach(e=>{
 });},{threshold:.6});
 document.querySelectorAll('.stat .n').forEach(el=>io.observe(el));
 
-/* ---- copy buttons ---- */
 document.querySelectorAll('.copy').forEach(b=>{
   b.onclick=()=>{const code=document.getElementById(b.dataset.src).textContent;
-    navigator.clipboard.writeText(code).then(()=>{const o=b.textContent;b.textContent='Copied ✓';
-      b.style.color='var(--scan)';setTimeout(()=>{b.textContent=o;b.style.color=''},1400)});};
+    navigator.clipboard.writeText(code).then(()=>{const o=b.textContent;b.textContent='Copied';
+      b.style.color='var(--honey)';setTimeout(()=>{b.textContent=o;b.style.color=''},1400)});};
 });
 
-/* ---- the signature: a synthetic detector viewport ---- */
+/* ---- detection viewport: stylized faces that fade in/out with changing readouts ---- */
 (function(){
   const cv=document.getElementById('sensor');if(!cv)return;
   const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const ctx=cv.getContext('2d');
   function size(){const r=cv.getBoundingClientRect();cv.width=r.width*devicePixelRatio;
-    cv.height=r.height*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,1,1);}
+    cv.height=r.height*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}
   size();addEventListener('resize',size);
   const W=()=>cv.width/devicePixelRatio,H=()=>cv.height/devicePixelRatio;
-  // three tracked "faces" drifting like the real tracker follows people
-  const names=[['AARUSH','98%','#39d98a'],['KARTHIK','91%','#39d98a'],['UNKNOWN','—','#ff5d5d']];
-  const F=names.map((n,i)=>({x:.2+i*.3,y:.35+((i%2)*.2),vx:(Math.random()-.5)*.0016,
-     vy:(Math.random()-.5)*.0016,s:.14+Math.random()*.05,n}));
-  function frame(){
-    const w=W(),h=H();ctx.clearRect(0,0,w,h);
-    F.forEach(f=>{
-      f.x+=f.vx;f.y+=f.vy;
-      if(f.x<.12||f.x>.82)f.vx*=-1;if(f.y<.2||f.y>.66)f.vy*=-1;
-      const bw=f.s*w,bh=f.s*w*1.25,bx=f.x*w,by=f.y*h,col=f.n[2];
-      // box
-      ctx.strokeStyle=col;ctx.lineWidth=2;ctx.globalAlpha=.9;
-      ctx.strokeRect(bx,by,bw,bh);
-      // corners
-      const c=10;ctx.lineWidth=3;
-      [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]].forEach(([x,y,dx,dy])=>{
-        ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx*c,y);ctx.moveTo(x,y);ctx.lineTo(x,y+dy*c);ctx.stroke();});
-      // label
-      ctx.globalAlpha=1;ctx.fillStyle=col;ctx.fillRect(bx,by-18,bw,16);
-      ctx.fillStyle='#04120b';ctx.font='11px DejaVu Sans Mono,monospace';
-      ctx.fillText(' '+f.n[0]+'  '+f.n[1],bx,by-6);
-    });
-    ctx.globalAlpha=1;
-    if(!reduce)requestAnimationFrame(frame);
+
+  const NAMES=['Aarush','Karthik','Guest','Priya','Unknown','Ravi'];
+  const SKIN=['#e0b088','#caa06f','#b98a5e','#d9a878','#c69465'];
+  const HAIR=['#2b2320','#3a2c22','#1f1a17','#43342a'];
+  const LEAF='#8fc4a0',ROSE='#e0798c',HONEY='#e8a860';
+
+  function makeFace(){
+    const unknown=Math.random()<0.22;
+    return {
+      x:0.16+Math.random()*0.62, y:0.2+Math.random()*0.5,
+      s:0.15+Math.random()*0.07,
+      skin:SKIN[(Math.random()*SKIN.length)|0],
+      hair:HAIR[(Math.random()*HAIR.length)|0],
+      name:unknown?'Unknown':NAMES[(Math.random()*4)|0],
+      unknown:unknown,
+      conf:unknown?null:(84+Math.random()*15),
+      alpha:0, life:0, ttl:3.2+Math.random()*2.6, phase:'in',
+      confJit:0
+    };
   }
-  frame();
+  let faces=[makeFace(),makeFace()];
+  faces[0].life=1;faces[1].life=1.6;
+
+  function drawFace(f){
+    const w=W(),h=H(),cx=f.x*w,cy=f.y*h,r=f.s*w;
+    ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,f.alpha));
+    // hair backdrop
+    ctx.fillStyle=f.hair;
+    ctx.beginPath();ctx.ellipse(cx,cy-r*0.15,r*0.82,r*0.95,0,0,Math.PI*2);ctx.fill();
+    // face
+    ctx.fillStyle=f.skin;
+    ctx.beginPath();ctx.ellipse(cx,cy,r*0.66,r*0.82,0,0,Math.PI*2);ctx.fill();
+    // hair top sweep
+    ctx.fillStyle=f.hair;
+    ctx.beginPath();ctx.ellipse(cx,cy-r*0.5,r*0.7,r*0.4,0,Math.PI,0);ctx.fill();
+    // eyes
+    ctx.fillStyle='#2a2422';
+    ctx.beginPath();ctx.ellipse(cx-r*0.26,cy-r*0.05,r*0.08,r*0.1,0,0,6.3);ctx.fill();
+    ctx.beginPath();ctx.ellipse(cx+r*0.26,cy-r*0.05,r*0.08,r*0.1,0,0,6.3);ctx.fill();
+    // brows
+    ctx.strokeStyle=f.hair;ctx.lineWidth=Math.max(1.5,r*0.05);ctx.lineCap='round';
+    ctx.beginPath();ctx.moveTo(cx-r*0.36,cy-r*0.22);ctx.lineTo(cx-r*0.14,cy-r*0.26);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx+r*0.14,cy-r*0.26);ctx.lineTo(cx+r*0.36,cy-r*0.22);ctx.stroke();
+    // nose + mouth
+    ctx.strokeStyle='rgba(0,0,0,.28)';ctx.lineWidth=Math.max(1,r*0.035);
+    ctx.beginPath();ctx.moveTo(cx,cy-r*0.02);ctx.lineTo(cx+r*0.05,cy+r*0.2);ctx.stroke();
+    ctx.beginPath();ctx.moveTo(cx-r*0.2,cy+r*0.38);ctx.quadraticCurveTo(cx,cy+r*0.5,cx+r*0.2,cy+r*0.38);ctx.stroke();
+    ctx.restore();
+
+    // detection box + label
+    const col=f.unknown?ROSE:LEAF;
+    const bx=cx-r*0.9,by=cy-r*1.15,bw=r*1.8,bh=r*2.15;
+    ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,f.alpha));
+    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
+    const c=11;ctx.lineWidth=3;
+    [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]].forEach(([x,y,dx,dy])=>{
+      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx*c,y);ctx.moveTo(x,y);ctx.lineTo(x,y+dy*c);ctx.stroke();});
+    // label bar
+    ctx.fillStyle=col;ctx.fillRect(bx,by-20,bw,17);
+    ctx.fillStyle='#1a1310';ctx.font='600 12px "Public Sans",sans-serif';
+    const lbl=f.unknown?'Unknown':(f.name+'  '+(f.conf|0)+'%');
+    ctx.fillText(lbl,bx+6,by-7);
+    ctx.restore();
+  }
+
+  let last=performance.now();
+  function frame(now){
+    const dt=Math.min(0.05,(now-last)/1000);last=now;
+    ctx.clearRect(0,0,W(),H());
+    faces.forEach(f=>{
+      f.life+=dt;
+      if(f.phase==='in'){f.alpha+=dt*1.6;if(f.alpha>=1){f.alpha=1;f.phase='hold';}}
+      else if(f.phase==='hold'){if(f.life>f.ttl)f.phase='out';}
+      else{f.alpha-=dt*1.4;}
+      // confidence drifts a little while present
+      if(!f.unknown&&f.phase!=='out'){f.confJit+=dt;
+        if(f.confJit>0.5){f.confJit=0;f.conf=Math.max(83,Math.min(99,f.conf+(Math.random()-0.45)*3));}}
+      drawFace(f);
+    });
+    // respawn faded-out faces as new people
+    faces=faces.filter(f=>!(f.phase==='out'&&f.alpha<=0));
+    while(faces.length<2)faces.push(makeFace());
+    if(Math.random()<0.004&&faces.length<3)faces.push(makeFace());
+    if(!reduce)requestAnimationFrame(frame);
+    else{faces.forEach(f=>{f.alpha=1;drawFace(f);});}
+  }
+  requestAnimationFrame(frame);
 })();
 </script>
 </body>
