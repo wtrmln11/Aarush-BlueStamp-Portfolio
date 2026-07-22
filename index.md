@@ -85,7 +85,7 @@
   .btn.solid:hover{background:#f0b674;color:#20160a}
 
   /* detection viewport (signature) */
-  .scanner{position:relative;aspect-ratio:4/3;border:1px solid var(--line);
+  .scanner{position:relative;aspect-ratio:16/10;border:1px solid var(--line);
     border-radius:14px;overflow:hidden;background:#15141c;
     box-shadow:0 24px 60px rgba(0,0,0,.45)}
   .scanner canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
@@ -240,7 +240,7 @@
     </div>
     <div class="scanner" aria-hidden="true">
       <canvas id="sensor"></canvas>
-      <div class="scan-hud"><span class="rd"></span>REC&nbsp;<span class="sub">buffalo_l · 512-D · live</span></div>
+      <div class="scan-hud"><span class="rd"></span>REC&nbsp;<span class="sub">CAST IDENTIFICATION · buffalo_l · 512-D</span></div>
     </div>
   </div>
   <div class="stats">
@@ -3931,7 +3931,7 @@ document.querySelectorAll('.copy').forEach(b=>{
       b.style.color='var(--honey)';setTimeout(()=>{b.textContent=o;b.style.color=''},1400)});};
 });
 
-/* ---- detection viewport: stylized faces that fade in/out with changing readouts ---- */
+/* ---- cinematic cast identification sequence: one subject at a time ---- */
 (function(){
   const cv=document.getElementById('sensor');if(!cv)return;
   const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
@@ -3941,92 +3941,286 @@ document.querySelectorAll('.copy').forEach(b=>{
   size();addEventListener('resize',size);
   const W=()=>cv.width/devicePixelRatio,H=()=>cv.height/devicePixelRatio;
 
-  const NAMES=['Aarush','Karthik','Guest','Priya','Unknown','Ravi'];
-  const SKIN=['#e0b088','#caa06f','#b98a5e','#d9a878','#c69465'];
-  const HAIR=['#2b2320','#3a2c22','#1f1a17','#43342a'];
-  const LEAF='#8fc4a0',ROSE='#e0798c',HONEY='#e8a860';
+  const HONEY='#e8a860',LEAF='#8fc4a0',ROSE='#e0798c',PAPER='#efe9e1',MUTED='#a49caf';
 
-  function makeFace(){
-    const unknown=Math.random()<0.22;
+  /* Fictional cast. No real people. */
+  const CAST=[
+    {n:'ELENA VOSS',      r:'THE ARCHITECT', id:'SUBJECT 01', m:98},
+    {n:'MARCUS ADEYEMI',  r:'THE DRIVER',    id:'SUBJECT 02', m:96},
+    {n:'YUKI TANAKA',     r:'THE ENGINEER',  id:'SUBJECT 03', m:97},
+    {n:'SOFIA REYES',     r:'THE FORGER',    id:'SUBJECT 04', m:95},
+    {n:'—— NO MATCH ——',  r:'UNREGISTERED',  id:'SUBJECT ??', m:0, unknown:true}
+  ];
+
+  /* A face built from points so it can be drawn as a wireframe mesh.
+     Seeded per subject so each face is structurally different. */
+  function rnd(seed){let s=seed;return()=>{s=(s*1664525+1013904223)%4294967296;return s/4294967296;};}
+  function buildFace(seed){
+    const R=rnd(seed*7919+13);
+    const jaw=0.80+R()*0.22, brow=0.86+R()*0.2, eyeW=0.22+R()*0.07,
+          eyeY=-0.06+R()*0.06, noseL=0.20+R()*0.12, mouthW=0.20+R()*0.09,
+          chin=1.02+R()*0.16;
+    const P=[];
+    /* outline: skull -> jaw -> chin */
+    for(let i=0;i<=22;i++){
+      const t=i/22, a=Math.PI*(1+t);           /* around the head */
+      const rx=0.66*jaw, ry=0.86;
+      let x=Math.cos(a)*rx, y=Math.sin(a)*ry;
+      if(y>0.34)y*=chin;                        /* elongate chin */
+      P.push([x,y]);
+    }
+    const O=P.length;
+    /* features */
+    const feat=[
+      [-eyeW,eyeY],[-eyeW+0.09,eyeY-0.03],[-eyeW+0.05,eyeY+0.05],   /* L eye */
+      [ eyeW,eyeY],[ eyeW-0.09,eyeY-0.03],[ eyeW-0.05,eyeY+0.05],   /* R eye */
+      [-eyeW-0.06,eyeY-0.16*brow],[-eyeW+0.10,eyeY-0.20*brow],      /* L brow */
+      [ eyeW+0.06,eyeY-0.16*brow],[ eyeW-0.10,eyeY-0.20*brow],      /* R brow */
+      [0,eyeY+0.02],[0.03,eyeY+noseL],[-0.05,eyeY+noseL+0.03],      /* nose */
+      [-mouthW,0.40],[0,0.44],[mouthW,0.40],[0,0.36],               /* mouth */
+      [-0.52,0.02],[0.52,0.02],                                     /* temples */
+      [0,-0.62]                                                     /* crown */
+    ];
+    feat.forEach(p=>P.push(p));
+    /* mesh edges: outline chain + feature triangulation */
+    const E=[];
+    for(let i=0;i<O-1;i++)E.push([i,i+1]);
+    const f=(k)=>O+k;
+    [[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[6,7],[8,9],
+     [10,11],[11,12],[12,10],[13,14],[14,15],[15,16],[16,13],
+     [0,6],[3,8],[10,0],[10,3],[11,14],[13,17],[16,18],[19,17],[19,18],
+     [6,19],[9,19],[17,0],[18,3],[13,11],[16,11]
+    ].forEach(([a,b])=>E.push([f(a),f(b)]));
+    /* tie some outline points into the feature mesh for a full lattice */
+    for(let i=0;i<O;i+=3){
+      const near=[f(17),f(18),f(19),f(13),f(16)][(i/3)%5|0];
+      E.push([i,near]);
+    }
+    return {P,E,O};
+  }
+
+  let LAST_DT=0.016;
+  const STATE={idx:0,t:0,phase:'enter',face:buildFace(1),scan:0};
+
+  /* --- encoding motes: fragments of the 512-D embedding that pop up at
+     random points around the frame, fade, and respawn with new values --- */
+  const MOTES=[];
+  function spawnMote(){
+    const dims=[];
+    const n=2+((Math.random()*3)|0);
+    for(let i=0;i<n;i++){
+      const v=(Math.random()*2-1);
+      dims.push((v<0?'':' ')+v.toFixed(3));
+    }
     return {
-      x:0.16+Math.random()*0.62, y:0.2+Math.random()*0.5,
-      s:0.15+Math.random()*0.07,
-      skin:SKIN[(Math.random()*SKIN.length)|0],
-      hair:HAIR[(Math.random()*HAIR.length)|0],
-      name:unknown?'Unknown':NAMES[(Math.random()*4)|0],
-      unknown:unknown,
-      conf:unknown?null:(84+Math.random()*15),
-      alpha:0, life:0, ttl:3.2+Math.random()*2.6, phase:'in',
-      confJit:0
+      x:0.04+Math.random()*0.90,
+      y:0.10+Math.random()*0.80,
+      idx:(Math.random()*512)|0,
+      vals:dims,
+      a:0, life:0, ttl:0.7+Math.random()*1.5, phase:'in',
+      warm:Math.random()<0.35
     };
   }
-  let faces=[makeFace(),makeFace()];
-  faces[0].life=1;faces[1].life=1.6;
+  for(let i=0;i<7;i++){const m=spawnMote();m.life=Math.random()*m.ttl;m.a=Math.random();MOTES.push(m);}
 
-  function drawFace(f){
-    const w=W(),h=H(),cx=f.x*w,cy=f.y*h,r=f.s*w;
-    ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,f.alpha));
-    // hair backdrop
-    ctx.fillStyle=f.hair;
-    ctx.beginPath();ctx.ellipse(cx,cy-r*0.15,r*0.82,r*0.95,0,0,Math.PI*2);ctx.fill();
-    // face
-    ctx.fillStyle=f.skin;
-    ctx.beginPath();ctx.ellipse(cx,cy,r*0.66,r*0.82,0,0,Math.PI*2);ctx.fill();
-    // hair top sweep
-    ctx.fillStyle=f.hair;
-    ctx.beginPath();ctx.ellipse(cx,cy-r*0.5,r*0.7,r*0.4,0,Math.PI,0);ctx.fill();
-    // eyes
-    ctx.fillStyle='#2a2422';
-    ctx.beginPath();ctx.ellipse(cx-r*0.26,cy-r*0.05,r*0.08,r*0.1,0,0,6.3);ctx.fill();
-    ctx.beginPath();ctx.ellipse(cx+r*0.26,cy-r*0.05,r*0.08,r*0.1,0,0,6.3);ctx.fill();
-    // brows
-    ctx.strokeStyle=f.hair;ctx.lineWidth=Math.max(1.5,r*0.05);ctx.lineCap='round';
-    ctx.beginPath();ctx.moveTo(cx-r*0.36,cy-r*0.22);ctx.lineTo(cx-r*0.14,cy-r*0.26);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx+r*0.14,cy-r*0.26);ctx.lineTo(cx+r*0.36,cy-r*0.22);ctx.stroke();
-    // nose + mouth
-    ctx.strokeStyle='rgba(0,0,0,.28)';ctx.lineWidth=Math.max(1,r*0.035);
-    ctx.beginPath();ctx.moveTo(cx,cy-r*0.02);ctx.lineTo(cx+r*0.05,cy+r*0.2);ctx.stroke();
-    ctx.beginPath();ctx.moveTo(cx-r*0.2,cy+r*0.38);ctx.quadraticCurveTo(cx,cy+r*0.5,cx+r*0.2,cy+r*0.38);ctx.stroke();
+  function drawMotes(dt,w,h,appear){
+    ctx.save();
+    ctx.font='500 9px "Public Sans",sans-serif';
+    for(let i=MOTES.length-1;i>=0;i--){
+      const m=MOTES[i];
+      m.life+=dt;
+      if(m.phase==='in'){m.a+=dt*2.4;if(m.a>=1){m.a=1;m.phase='hold';}}
+      else if(m.phase==='hold'){if(m.life>m.ttl)m.phase='out';}
+      else{m.a-=dt*1.8;}
+      if(m.phase==='out'&&m.a<=0){MOTES.splice(i,1);continue;}
+      const X=m.x*w,Y=m.y*h;
+      ctx.globalAlpha=m.a*0.5*appear;
+      ctx.fillStyle=m.warm?HONEY:MUTED;
+      ctx.fillText('e['+m.idx+']',X,Y);
+      ctx.globalAlpha=m.a*0.34*appear;
+      ctx.fillStyle=PAPER;
+      ctx.fillText(m.vals.join('  '),X,Y+11);
+      /* tick mark so it reads as instrument data, not stray text */
+      ctx.globalAlpha=m.a*0.30*appear;
+      ctx.fillStyle=m.warm?HONEY:MUTED;
+      ctx.fillRect(X-6,Y-7,1.5,18);
+    }
+    ctx.restore();
+    while(MOTES.length<7)MOTES.push(spawnMote());
+    if(Math.random()<0.05&&MOTES.length<11)MOTES.push(spawnMote());
+  }
+  const DUR={enter:0.7,scan:1.9,lock:2.4,exit:0.6};
+
+  function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+
+  function draw(now){
+    const w=W(),h=H();
+    ctx.clearRect(0,0,w,h);
+
+    /* --- backdrop: soft studio gradient --- */
+    const g=ctx.createRadialGradient(w*0.5,h*0.42,10,w*0.5,h*0.42,h*0.95);
+    g.addColorStop(0,'#252231');g.addColorStop(1,'#141319');
+    ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
+
+    const S=CAST[STATE.idx], col=S.unknown?ROSE:LEAF;
+    const cx=w*0.42, cy=h*0.50, r=Math.min(w,h)*0.30;
+
+    /* progress within phase */
+    const p=Math.min(1,STATE.t/DUR[STATE.phase]);
+    let appear=1;
+    if(STATE.phase==='enter')appear=ease(p);
+    if(STATE.phase==='exit')appear=1-ease(p);
+
+    /* --- the face mesh --- */
+    const F=STATE.face;
+    ctx.save();ctx.globalAlpha=appear;
+    /* filled volume behind the wire, very subtle */
+    ctx.beginPath();
+    for(let i=0;i<F.O;i++){const [x,y]=F.P[i];
+      const X=cx+x*r,Y=cy+y*r; i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
+    ctx.closePath();
+    ctx.fillStyle='rgba(232,168,96,0.05)';ctx.fill();
+
+    /* scan line position sweeps top->bottom during scan phase */
+    const scanY=STATE.phase==='scan'?(cy-r*0.95)+(r*2.0)*p:null;
+
+    /* edges */
+    F.E.forEach(([a,b])=>{
+      const A=F.P[a],B=F.P[b];
+      const ax=cx+A[0]*r,ay=cy+A[1]*r,bx2=cx+B[0]*r,by2=cy+B[1]*r;
+      let alpha=0.30;
+      if(scanY!==null){
+        const d=Math.min(Math.abs(ay-scanY),Math.abs(by2-scanY));
+        alpha=d<26?0.95:(ay<scanY?0.42:0.16);   /* lit as the beam passes */
+      }else if(STATE.phase==='lock'||STATE.phase==='exit')alpha=0.46;
+      ctx.strokeStyle=col;ctx.globalAlpha=appear*alpha;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx2,by2);ctx.stroke();
+    });
+    /* vertices */
+    F.P.forEach(([x,y],i)=>{
+      const X=cx+x*r,Y=cy+y*r;
+      let a=0.5;
+      if(scanY!==null){a=Math.abs(Y-scanY)<26?1:0.28;}
+      ctx.globalAlpha=appear*a;ctx.fillStyle=i<F.O?col:HONEY;
+      ctx.beginPath();ctx.arc(X,Y,i<F.O?1.4:2.0,0,6.3);ctx.fill();
+    });
     ctx.restore();
 
-    // detection box + label
-    const col=f.unknown?ROSE:LEAF;
-    const bx=cx-r*0.9,by=cy-r*1.15,bw=r*1.8,bh=r*2.15;
-    ctx.save();ctx.globalAlpha=Math.max(0,Math.min(1,f.alpha));
-    ctx.strokeStyle=col;ctx.lineWidth=2;ctx.strokeRect(bx,by,bw,bh);
-    const c=11;ctx.lineWidth=3;
-    [[bx,by,1,1],[bx+bw,by,-1,1],[bx,by+bh,1,-1],[bx+bw,by+bh,-1,-1]].forEach(([x,y,dx,dy])=>{
-      ctx.beginPath();ctx.moveTo(x,y);ctx.lineTo(x+dx*c,y);ctx.moveTo(x,y);ctx.lineTo(x,y+dy*c);ctx.stroke();});
-    // label bar
-    ctx.fillStyle=col;ctx.fillRect(bx,by-20,bw,17);
-    ctx.fillStyle='#1a1310';ctx.font='600 12px "Public Sans",sans-serif';
-    const lbl=f.unknown?'Unknown':(f.name+'  '+(f.conf|0)+'%');
-    ctx.fillText(lbl,bx+6,by-7);
+    /* --- scan beam --- */
+    if(scanY!==null){
+      ctx.save();ctx.globalAlpha=appear*0.85;
+      const lg=ctx.createLinearGradient(0,scanY-18,0,scanY+18);
+      lg.addColorStop(0,'rgba(232,168,96,0)');
+      lg.addColorStop(0.5,'rgba(232,168,96,0.5)');
+      lg.addColorStop(1,'rgba(232,168,96,0)');
+      ctx.fillStyle=lg;ctx.fillRect(cx-r*1.25,scanY-18,r*2.5,36);
+      ctx.strokeStyle=HONEY;ctx.lineWidth=1.2;ctx.globalAlpha=appear;
+      ctx.beginPath();ctx.moveTo(cx-r*1.25,scanY);ctx.lineTo(cx+r*1.25,scanY);ctx.stroke();
+      ctx.restore();
+    }
+
+    /* --- reticle: closes in during scan, locks on --- */
+    const closing=STATE.phase==='scan'?(1-p):0;
+    const rr=r*(1.30+closing*0.5);
+    ctx.save();ctx.globalAlpha=appear*(STATE.phase==='enter'?p:1);
+    ctx.strokeStyle=col;ctx.lineWidth=1.6;
+    const c=Math.min(30,rr*0.34);
+    [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>{
+      const X=cx+sx*rr*0.92,Y=cy+sy*rr*1.02;
+      ctx.beginPath();ctx.moveTo(X-sx*c,Y);ctx.lineTo(X,Y);ctx.lineTo(X,Y-sy*c);ctx.stroke();
+    });
+    if(STATE.phase==='lock'||STATE.phase==='exit'){
+      ctx.globalAlpha=appear*0.30;ctx.lineWidth=1;
+      ctx.strokeRect(cx-rr*0.92,cy-rr*1.02,rr*1.84,rr*2.04);
+    }
     ctx.restore();
+
+    /* --- dossier panel, types in on lock --- */
+    const dx=w*0.68;
+    if(STATE.phase==='lock'||STATE.phase==='exit'){
+      const lp=STATE.phase==='lock'?Math.min(1,STATE.t/0.55):1;
+      ctx.save();ctx.globalAlpha=appear*lp;
+      ctx.strokeStyle='rgba(255,255,255,0.10)';ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(dx-18,cy-r*0.86);ctx.lineTo(dx-18,cy+r*0.5);ctx.stroke();
+
+      ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
+      ctx.fillText(S.id,dx,cy-r*0.68);
+
+      /* name types out character by character */
+      const shown=S.n.slice(0,Math.ceil(S.n.length*Math.min(1,lp*1.5)));
+      ctx.fillStyle=PAPER;ctx.font='800 clamp(15px,2vw,21px) "Bricolage Grotesque",serif';
+      ctx.font='800 20px "Bricolage Grotesque",Georgia,serif';
+      ctx.fillText(shown,dx,cy-r*0.40);
+
+      ctx.fillStyle=col;ctx.font='600 11px "Public Sans",sans-serif';
+      ctx.fillText(S.r,dx,cy-r*0.16);
+
+      if(!S.unknown){
+        ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
+        ctx.fillText('MATCH CONFIDENCE',dx,cy+r*0.10);
+        /* confidence bar fills */
+        const bw=Math.min(150,w*0.20),bh=4;
+        ctx.fillStyle='rgba(255,255,255,0.10)';ctx.fillRect(dx,cy+r*0.18,bw,bh);
+        ctx.fillStyle=col;ctx.fillRect(dx,cy+r*0.18,bw*(S.m/100)*lp,bh);
+        ctx.fillStyle=PAPER;ctx.font='700 13px "Public Sans",sans-serif';
+        ctx.fillText((S.m*lp).toFixed(1)+'%',dx,cy+r*0.40);
+      }else{
+        ctx.fillStyle=ROSE;ctx.font='700 12px "Public Sans",sans-serif';
+        ctx.fillText('NOT IN DATABASE',dx,cy+r*0.14);
+      }
+      ctx.restore();
+    }
+
+    /* --- encoding motes scattered across the frame --- */
+    drawMotes(LAST_DT,w,h,appear*0.55+0.45);
+
+    /* --- status line, lower left --- */
+    ctx.save();ctx.globalAlpha=0.9;
+    ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
+    const msg=STATE.phase==='scan'?'ANALYZING GEOMETRY':
+              STATE.phase==='lock'?(S.unknown?'NO RECORD FOUND':'IDENTITY CONFIRMED'):
+              'ACQUIRING SUBJECT';
+    ctx.fillText(msg,20,h-26);
+    /* progress ticks */
+    for(let i=0;i<CAST.length;i++){
+      ctx.fillStyle=i===STATE.idx?HONEY:'rgba(255,255,255,0.16)';
+      ctx.fillRect(20+i*13,h-18,8,2);
+    }
+    ctx.restore();
+
+    /* --- cinematic finish: letterbox, vignette, grain --- */
+    const bar=h*0.055;
+    ctx.fillStyle='#0f0e13';ctx.fillRect(0,0,w,bar);ctx.fillRect(0,h-bar,w,bar);
+    const vg=ctx.createRadialGradient(w*0.5,h*0.5,h*0.25,w*0.5,h*0.5,h*0.85);
+    vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.55)');
+    ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
+    ctx.globalAlpha=0.035;
+    for(let i=0;i<130;i++){
+      ctx.fillStyle=Math.random()>0.5?'#fff':'#000';
+      ctx.fillRect(Math.random()*w,bar+Math.random()*(h-bar*2),1,1);
+    }
+    ctx.globalAlpha=1;
   }
 
   let last=performance.now();
-  function frame(now){
-    const dt=Math.min(0.05,(now-last)/1000);last=now;
-    ctx.clearRect(0,0,W(),H());
-    faces.forEach(f=>{
-      f.life+=dt;
-      if(f.phase==='in'){f.alpha+=dt*1.6;if(f.alpha>=1){f.alpha=1;f.phase='hold';}}
-      else if(f.phase==='hold'){if(f.life>f.ttl)f.phase='out';}
-      else{f.alpha-=dt*1.4;}
-      // confidence drifts a little while present
-      if(!f.unknown&&f.phase!=='out'){f.confJit+=dt;
-        if(f.confJit>0.5){f.confJit=0;f.conf=Math.max(83,Math.min(99,f.conf+(Math.random()-0.45)*3));}}
-      drawFace(f);
-    });
-    // respawn faded-out faces as new people
-    faces=faces.filter(f=>!(f.phase==='out'&&f.alpha<=0));
-    while(faces.length<2)faces.push(makeFace());
-    if(Math.random()<0.004&&faces.length<3)faces.push(makeFace());
-    if(!reduce)requestAnimationFrame(frame);
-    else{faces.forEach(f=>{f.alpha=1;drawFace(f);});}
+  function loop(now){
+    const dt=Math.min(0.05,(now-last)/1000);last=now;LAST_DT=dt;
+    STATE.t+=dt;
+    if(STATE.t>=DUR[STATE.phase]){
+      STATE.t=0;
+      const order=['enter','scan','lock','exit'];
+      const i=order.indexOf(STATE.phase);
+      if(i===order.length-1){
+        STATE.idx=(STATE.idx+1)%CAST.length;
+        STATE.face=buildFace(STATE.idx+2);
+        STATE.phase='enter';
+      }else STATE.phase=order[i+1];
+    }
+    draw(now);
+    if(!reduce)requestAnimationFrame(loop);
   }
-  requestAnimationFrame(frame);
+  if(reduce){STATE.phase='lock';STATE.t=DUR.lock*0.6;draw(performance.now());}
+  else requestAnimationFrame(loop);
 })();
 </script>
 </body>
