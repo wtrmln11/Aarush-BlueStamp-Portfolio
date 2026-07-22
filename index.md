@@ -257,6 +257,17 @@
 
   <div class="miles">
     <div class="mile">
+      <div class="mile-top"><span class="tag">Third Milestone</span><h3>Recognizing faces across the room</h3></div>
+      <div class="video"><iframe src="https://www.youtube.com/embed/sZwaTWv5O6E" title="Third milestone" allowfullscreen loading="lazy"></iframe></div>
+      <div class="points">
+        <div class="pt"><span class="m">&mdash;</span><span>Achieved reliable facial recognition at up to 10 meters using the 64MP Arducam Hawkeye camera with digital zoom</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Built a dynamic zoom system (= / - keys) that automatically adjusts processing detail and frame skip rate based on zoom level, more zoom means the algorithm keeps more pixel detail per face</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Implemented confidence percentage scoring on every recognized face, color coded green (high), orange (low), red (unknown)</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Solved the core range problem by exploiting the 64MP sensor: zooming in crops the sensor rather than stretching pixels, so faces at distance still have hundreds of pixels of detail for the algorithm to work with</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Overhauled model training with image augmentation (flip, brightness, rotation) that multiplies each training photo 6x without taking more pictures, and a CNN fallback for hard-to-detect faces</span></div>
+      </div>
+    </div>
+    <div class="mile">
       <div class="mile-top"><span class="tag">Second Milestone</span><h3>Putting names on the live feed</h3></div>
       <div class="video"><iframe src="https://www.youtube.com/embed/xFbNuY9iE_g" title="Second milestone" allowfullscreen loading="lazy"></iframe></div>
       <div class="points">
