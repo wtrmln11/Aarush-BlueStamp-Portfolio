@@ -261,10 +261,10 @@
       <div class="video"><iframe src="https://www.youtube.com/embed/sZwaTWv5O6E" title="Third milestone" allowfullscreen loading="lazy"></iframe></div>
       <div class="points">
         <div class="pt"><span class="m">&mdash;</span><span>Achieved reliable facial recognition at up to 10 meters using the 64MP Arducam Hawkeye camera with digital zoom</span></div>
-        <div class="pt"><span class="m">&mdash;</span><span>Built a dynamic zoom system (= / - keys) that automatically adjusts processing detail and frame skip rate based on zoom level, more zoom means the algorithm keeps more pixel detail per face</span></div>
-        <div class="pt"><span class="m">&mdash;</span><span>Implemented confidence percentage scoring on every recognized face, color coded green (high), orange (low), red (unknown)</span></div>
-        <div class="pt"><span class="m">&mdash;</span><span>Solved the core range problem by exploiting the 64MP sensor: zooming in crops the sensor rather than stretching pixels, so faces at distance still have hundreds of pixels of detail for the algorithm to work with</span></div>
-        <div class="pt"><span class="m">&mdash;</span><span>Overhauled model training with image augmentation (flip, brightness, rotation) that multiplies each training photo 6x without taking more pictures, and a CNN fallback for hard-to-detect faces</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Built a dynamic zoom-system (=/-keys) that automatically adjusts processing detail and frame skip rate based on zoom level, the more zoomed in means the algorithm keeps more pixel detail per face </span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Implemented confidence percentage scoring on every recognized face gives color coded output of green (high),orange (low),and red (unknown))</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Solved the range problem by zooming in on the 64MP sensor rather than stretching pixels means faces at distance still have hundreds of pixels of detail</span></div>
+        <div class="pt"><span class="m">&mdash;</span><span>Overhauled training by augmenting training set with flipped,adjusted brightness and rotated training photos multiplies each training photo 6x and used a CNN to detect hard-to-detect faces</span></div>
       </div>
     </div>
     <div class="mile">
