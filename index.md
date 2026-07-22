@@ -393,7 +393,7 @@
 <!-- ============ SCHEMATICS ============ -->
 <section id="schematics">
   <div class="sec-head"><span class="sec-idx">03</span><h2>Schematics</h2></div>
-  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape. Placeholder tiles are reserved for shots still to come.</p>
+  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape.</p>
   <div class="gallery">
     <figure><img src="Case1.png" alt="Case schematic 1" loading="lazy"></figure>
     <figure><img src="case2.png" alt="Case schematic 2" loading="lazy"></figure>
@@ -409,7 +409,6 @@
 <!-- ============ CODE ============ -->
 <section id="code">
   <div class="sec-head"><span class="sec-idx">04</span><h2>The Code</h2></div>
-  <p class="sec-sub">Three scripts run the whole system. Each is collapsed to keep the page light. Click a bar to expand, or use Copy to grab the file.</p>
 
   <div class="ctrls">
     <span class="key"><b>=</b> zoom in</span><span class="key"><b>-</b> zoom out</span>
@@ -3464,7 +3463,6 @@ picam2.stop()
     </div>
   </details>
 
-  <p class="sec-sub" style="margin-top:26px">The recognition script uses InsightFace embeddings, which differ from the older dlib ones. Enroll people with an InsightFace script that writes <code>encodings_close.pickle</code> and <code>encodings_far.pickle</code>. The two capture scripts below still take the photos; only the encoding step changed.</p>
 
   <details class="code">
     <summary><span class="fn">headshots_capture-picam.py</span> — close-range training capture <span class="meta">4K · autofocus per shot · click to expand</span></summary>
