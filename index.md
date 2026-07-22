@@ -299,6 +299,7 @@
   </div>
 </section>
 
+
 <!-- ============ CHALLENGES ============ -->
 <section id="challenges">
   <div class="sec-head"><span class="sec-idx">02</span><h2>Challenges &amp; Fixes</h2></div>
@@ -308,92 +309,93 @@
       <summary><span class="chip">Distance</span>Faces at a distance<span class="q">+</span></summary>
       <div class="card-body">
         <div class="p"><b>The problem.</b> A face 3 feet away was too few pixels for the model to recognize.</div>
-        <div class="p"><b>The fix.</b> The 64 MP sensor holds far more detail than the screen shows. Instead of stretching a tiny image and losing detail, I crop into the sensor to grab a face and its hundreds of pixels. That digital zoom runs on the = and - keys, works automatically, and later gained manual pan (T/F/G/B) to look around the frame without moving the camera.</div>
+        <div class="p"><b>The fix.</b> The 64MP sensor takes in far more detail than the screen shows. Instead of losing quality by digitally zooming in on the face, I can crop into the sensor to get a face and hundreds of pixels from it. The digital zoom works on the = and - keys automatically, but also gained manual pan (T/F/G/B) support to look around the screen without moving the camera.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Data</span>Blurry, corrupted training photos<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> The camera was only sharp head-on, and some saved photos corrupted silently.</div>
-        <div class="p"><b>The fix.</b> Autofocus fires before every shot, with a cooldown so it never triggers twice in a row. Saving at high resolution with a set quality stopped the silent corruption for good.</div>
+        <div class="p"><b>The problem.</b> The training data for the model used the camera&#x27;s focus to get a sharp picture of the head only. Some of the training data also used some of the phone&#x27;s saved pictures that were corrupted while being taken.</div>
+        <div class="p"><b>The fix.</b> Autofocus will fire every time the camera takes a picture but will have a cooldown to not fire twice in a row. By setting a high resolution for the saved pictures and setting a quality for how it saves the file, the corruption has been stopped.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Data</span>Not enough training data<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> 200 photos of 4 people worked up close but failed at 3 feet.</div>
-        <div class="p"><b>The fix.</b> I shot more of myself from many angles and distances, then used augmentation to turn each photo into 6: flipped, brighter, darker, rotated. That teaches the model more lighting and angles without more photo sessions.</div>
+        <div class="p"><b>The problem.</b> Only used 200 training pictures of 4 people but up close at 3 feet.</div>
+        <div class="p"><b>The fix.</b> Took more pictures of myself from various angles and distances. The model can take each picture and create 6 different versions of the picture that it trains on. This process is called image augmentation.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Engine</span>Switching the recognition engine<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> The first engine (face_recognition + MediaPipe) worked up close but failed at distance and high accuracy.</div>
-        <div class="p"><b>The fix.</b> I moved to InsightFace with the buffalo_l model. It turns a face into a list of 512 numbers, an embedding that acts like a fingerprint. Comparing embeddings tells the program which face is which.</div>
+        <div class="p"><b>The problem.</b> The first engine (face_recognition + MediaPipe) worked when close to the face but failed at a distance.</div>
+        <div class="p"><b>The fix.</b> Switched to InsightFace with the buffalo_l model. This model takes a face and turns it into a list of 512 numbers that represent that face. The program can compare these lists to recognize individuals.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Speed</span>The model was too slow<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> InsightFace takes close to a second per recognition on the Pi, and the box froze while it ran.</div>
-        <div class="p"><b>The fix.</b> I split the work across three threads. One finds faces fast and draws boxes, a second runs the slow recognition and fills in names a beat later, and the main loop follows each face every frame with a template tracker. Box refresh got about 3× faster because detection no longer waits on recognition.</div>
+        <div class="p"><b>The problem.</b> InsightFace takes close to a second to identify each face on the Pi and the screen freezes during recognition.</div>
+        <div class="p"><b>The fix.</b> Redesigned the code to split the tasks into three separate threads. One finds faces and draws boxes around them fast. The second thread takes care of the recognition but allows a beat to pass before it shows the names of the people in the pictures. The third runs in sync with each face that is detected in each frame using a template tracker to follow the person&#x27;s face.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Tracking</span>Boxes stuck to the wall<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> The named box drifted off my face onto the wall behind me.</div>
-        <div class="p"><b>The fix.</b> Three guards. The tracker checks a patch has real texture, and a wall has none. Any box the detector stops confirming is removed on a timer. And the detector raises its confidence bar so shadows aren't read as faces.</div>
+        <div class="p"><b>The problem.</b> The box with the name of the person&#x27;s face got stuck to the wall behind my head.</div>
+        <div class="p"><b>The fix.</b> Three guards will prevent this. The facial tracker will look at the area around the box to see if there is any texture to it. Walls do not have texture. Any box that is detected but not confirmed by the named box will be removed after a period of time. The detector can also be programmed to not recognize shadows as faces.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Tracking</span>The box showed where I used to be<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> The detector is about a second behind, so its box lagged when I moved.</div>
-        <div class="p"><b>The fix.</b> The fast tracker owns the box position in real time; the slow detector only supplies the name and corrects size. On top of that, each detection is projected forward by my measured speed to where I am now, so the box snaps onto my current position, not my old one.</div>
+        <div class="p"><b>The problem.</b> The box showed where I was a second behind my actual position.</div>
+        <div class="p"><b>The fix.</b> The facial tracker controls the position of the box instead of the facial detector. The facial detector finds the face but is slower. Each face detection can also be projected forward to where I am in real time instead of my last location in the program.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Tracking</span>Lost boxes and duplicates<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> Moving fast dropped the box, and sometimes one person got a second box elsewhere on screen.</div>
-        <div class="p"><b>The fix.</b> The tracker coasts through brief failures, gliding at my last speed so a quick move or head turn doesn't drop it. A hard distance cap stops a lost box from flying across the screen, and duplicate suppression removes a stale second box with the same name. Two real people always stay separate.</div>
+        <div class="p"><b>The problem.</b> Fast movement with the head drops the facial box. Sometimes when I am in one picture there will be a facial box for one person but the facial detector will place a second box for that same person elsewhere in the screen.</div>
+        <div class="p"><b>The fix.</b> Facial tracker will continue to track the individual with no issues from movement of less than a few inches. The distance capped will prevent the facial box from getting stuck to any part of the screen. Duplicates will be suppressed so that there will only be one facial box for a given individual.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Measure</span>Distance, height, speed, age<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> Once tracking was solid, I wanted real measurements from the face box.</div>
-        <div class="p"><b>The fix.</b> Distance comes from apparent face size, calibrated by standing at 1 m and pressing D. Height comes from where the head sits relative to the camera's optical axis, calibrated with K. Speed uses the face as an on-screen ruler. Age and gender come from the model's built-in estimator. The hard part was keeping distance and height accurate at zoom, because zooming and panning move the optical axis off the center of the frame.</div>
+        <div class="p"><b>The problem.</b> With face tracking established, I wanted to read the measurements from the recognized face.</div>
+        <div class="p"><b>The fix.</b> Distance from the screen to the face can be calculated from the size of the face on screen. By standing on a meter mark and pressing the D button the app will calibrate to that position. Height will be read from how the head sits relative to the camera&#x27;s optical axis and marked with the calibration with the K button. Speed will use the screen to measure the distance traveled. Age and gender will be read from the model&#x27;s built in estimator but the challenge for this estimator was to keep the distance and height measurements accurate when using the zoom feature. Zooming and panning the screen can cause the optical axis to no longer be in the center of the screen.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Memory</span>Running out of memory<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> Full resolution ran the Pi out of memory.</div>
-        <div class="p"><b>The fix.</b> Cap the full-mode request, hold fewer frame buffers, and allocate no raw buffers. If the camera can't start in high-res mode, it falls back to a lower one instead of crashing.</div>
+        <div class="p"><b>The problem.</b> Pictures in full resolution used up the Pi&#x27;s memory.</div>
+        <div class="p"><b>The fix.</b> Limit the request of the full resolution. Fewer frames will be saved in memory by the model. There will be no raw buffers of the frames. If the app cannot start in full resolution it will automatically switch to a lower resolution mode.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Portable</span>Portable and headless<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> I wanted it to run on a power bank with no monitor.</div>
-        <div class="p"><b>The fix.</b> It streams the feed to a phone or laptop browser over WiFi, can join a phone hotspot to work anywhere, and auto-detects when there's no display so it streams only.</div>
+        <div class="p"><b>The problem.</b> I wanted to use the program off of a power bank with no screen.</div>
+        <div class="p"><b>The fix.</b> Stream the screen to a phone or laptop screen over WiFi. The phone can also be used to create a hotspot so the project can be used anywhere. If there is no screen detected it will automatically stream the screen.</div>
       </div>
     </details>
     <details class="card">
       <summary><span class="chip">Bugs</span>Small bugs along the way<span class="q">+</span></summary>
       <div class="card-body">
-        <div class="p"><b>The problem.</b> Everyone showed up with blue faces, and age readings were wildly off.</div>
-        <div class="p"><b>The fix.</b> Blue faces were a red/blue channel swap in the color conversion, fixed by swapping them back. Age was wrong until I fed that model the color order it actually expects, kept separate from the recognition path.</div>
+        <div class="p"><b>The problem.</b> People showed up in the screen with blue faces. The age detector was wildly off for many people.</div>
+        <div class="p"><b>The fix.</b> The color channels were wrong when it came to the screen&#x27;s red and blue channels. Swapping them back to the original order fixed the problem of the blue faces. The age problem was found to be caused by feeding the wrong color channel order to a model that expects it. This is separate to the face recognition models.</div>
       </div>
-    </details>  </div>
+    </details>
+    </div>
 </section>
 
 <!-- ============ SCHEMATICS ============ -->
 <section id="schematics">
   <div class="sec-head"><span class="sec-idx">03</span><h2>Schematics</h2></div>
-  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape.</p>
+  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape. Placeholder tiles are reserved for shots still to come.</p>
   <div class="gallery">
     <figure><img src="Case1.png" alt="Case schematic 1" loading="lazy"></figure>
     <figure><img src="case2.png" alt="Case schematic 2" loading="lazy"></figure>
@@ -409,6 +411,7 @@
 <!-- ============ CODE ============ -->
 <section id="code">
   <div class="sec-head"><span class="sec-idx">04</span><h2>The Code</h2></div>
+  <p class="sec-sub">Three scripts run the whole system. Each is collapsed to keep the page light. Click a bar to expand, or use Copy to grab the file.</p>
 
   <div class="ctrls">
     <span class="key"><b>=</b> zoom in</span><span class="key"><b>-</b> zoom out</span>
@@ -3463,6 +3466,7 @@ picam2.stop()
     </div>
   </details>
 
+  <p class="sec-sub" style="margin-top:26px">The recognition script uses InsightFace embeddings, which differ from the older dlib ones. Enroll people with an InsightFace script that writes <code>encodings_close.pickle</code> and <code>encodings_far.pickle</code>. The two capture scripts below still take the photos; only the encoding step changed.</p>
 
   <details class="code">
     <summary><span class="fn">headshots_capture-picam.py</span> — close-range training capture <span class="meta">4K · autofocus per shot · click to expand</span></summary>
