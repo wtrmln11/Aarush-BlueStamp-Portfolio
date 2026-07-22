@@ -3466,7 +3466,7 @@ picam2.stop()
     </div>
   </details>
 
-  <p class="sec-sub" style="margin-top:26px">The recognition script uses InsightFace embeddings, which differ from the older dlib ones. Enroll people with an InsightFace script that writes <code>encodings_close.pickle</code> and <code>encodings_far.pickle</code>. The two capture scripts below still take the photos; only the encoding step changed.</p>
+
 
   <details class="code">
     <summary><span class="fn">headshots_capture-picam.py</span> — close-range training capture <span class="meta">4K · autofocus per shot · click to expand</span></summary>
