@@ -395,7 +395,7 @@
 <!-- ============ SCHEMATICS ============ -->
 <section id="schematics">
   <div class="sec-head"><span class="sec-idx">03</span><h2>Schematics</h2></div>
-  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape. Placeholder tiles are reserved for shots still to come.</p>
+  <p class="sec-sub">The 3D-printed case and mounting, drawn in Onshape.</p>
   <div class="gallery">
     <figure><img src="Case1.png" alt="Case schematic 1" loading="lazy"></figure>
     <figure><img src="case2.png" alt="Case schematic 2" loading="lazy"></figure>
