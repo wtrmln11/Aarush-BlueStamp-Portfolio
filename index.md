@@ -3931,274 +3931,292 @@ document.querySelectorAll('.copy').forEach(b=>{
       b.style.color='var(--honey)';setTimeout(()=>{b.textContent=o;b.style.color=''},1400)});};
 });
 
-/* ---- cinematic cast identification sequence: one subject at a time ---- */
+/* ---- cinematic cast identification: subjects appear across the frame ---- */
 (function(){
   const cv=document.getElementById('sensor');if(!cv)return;
   const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
   const ctx=cv.getContext('2d');
-  function size(){const r=cv.getBoundingClientRect();cv.width=r.width*devicePixelRatio;
-    cv.height=r.height*devicePixelRatio;ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}
-  size();addEventListener('resize',size);
+  function size(){const r=cv.getBoundingClientRect();cv.width=Math.max(1,r.width*devicePixelRatio);
+    cv.height=Math.max(1,r.height*devicePixelRatio);
+    ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);}
+  size();addEventListener('resize',()=>{size();layout();});
   const W=()=>cv.width/devicePixelRatio,H=()=>cv.height/devicePixelRatio;
 
   const HONEY='#e8a860',LEAF='#8fc4a0',ROSE='#e0798c',PAPER='#efe9e1',MUTED='#a49caf';
 
-  /* Fictional cast. No real people. */
   const CAST=[
-    {n:'ELENA VOSS',      r:'THE ARCHITECT', id:'SUBJECT 01', m:98},
-    {n:'MARCUS ADEYEMI',  r:'THE DRIVER',    id:'SUBJECT 02', m:96},
-    {n:'YUKI TANAKA',     r:'THE ENGINEER',  id:'SUBJECT 03', m:97},
-    {n:'SOFIA REYES',     r:'THE FORGER',    id:'SUBJECT 04', m:95},
-    {n:'—— NO MATCH ——',  r:'UNREGISTERED',  id:'SUBJECT ??', m:0, unknown:true}
+    {n:'ELENA VOSS',     r:'THE ARCHITECT', m:98},
+    {n:'MARCUS ADEYEMI', r:'THE DRIVER',    m:96},
+    {n:'YUKI TANAKA',    r:'THE ENGINEER',  m:97},
+    {n:'SOFIA REYES',    r:'THE FORGER',    m:95},
+    {n:'IVAN KOWALCZYK', r:'THE FIXER',     m:94},
+    {n:'NO MATCH',       r:'UNREGISTERED',  m:0, unknown:true}
   ];
 
-  /* A face built from points so it can be drawn as a wireframe mesh.
-     Seeded per subject so each face is structurally different. */
-  function rnd(seed){let s=seed;return()=>{s=(s*1664525+1013904223)%4294967296;return s/4294967296;};}
+  function rnd(seed){let s=seed>>>0;return()=>{s=(s*1664525+1013904223)>>>0;return s/4294967296;};}
+
   function buildFace(seed){
     const R=rnd(seed*7919+13);
-    const jaw=0.80+R()*0.22, brow=0.86+R()*0.2, eyeW=0.22+R()*0.07,
-          eyeY=-0.06+R()*0.06, noseL=0.20+R()*0.12, mouthW=0.20+R()*0.09,
+    const jaw=0.80+R()*0.22,brow=0.86+R()*0.2,eyeW=0.22+R()*0.07,
+          eyeY=-0.06+R()*0.06,noseL=0.20+R()*0.12,mouthW=0.20+R()*0.09,
           chin=1.02+R()*0.16;
     const P=[];
-    /* outline: skull -> jaw -> chin */
     for(let i=0;i<=22;i++){
-      const t=i/22, a=Math.PI*(1+t);           /* around the head */
-      const rx=0.66*jaw, ry=0.86;
-      let x=Math.cos(a)*rx, y=Math.sin(a)*ry;
-      if(y>0.34)y*=chin;                        /* elongate chin */
+      const t=i/22,a=Math.PI*(1+t);
+      let x=Math.cos(a)*0.66*jaw,y=Math.sin(a)*0.86;
+      if(y>0.34)y*=chin;
       P.push([x,y]);
     }
     const O=P.length;
-    /* features */
     const feat=[
-      [-eyeW,eyeY],[-eyeW+0.09,eyeY-0.03],[-eyeW+0.05,eyeY+0.05],   /* L eye */
-      [ eyeW,eyeY],[ eyeW-0.09,eyeY-0.03],[ eyeW-0.05,eyeY+0.05],   /* R eye */
-      [-eyeW-0.06,eyeY-0.16*brow],[-eyeW+0.10,eyeY-0.20*brow],      /* L brow */
-      [ eyeW+0.06,eyeY-0.16*brow],[ eyeW-0.10,eyeY-0.20*brow],      /* R brow */
-      [0,eyeY+0.02],[0.03,eyeY+noseL],[-0.05,eyeY+noseL+0.03],      /* nose */
-      [-mouthW,0.40],[0,0.44],[mouthW,0.40],[0,0.36],               /* mouth */
-      [-0.52,0.02],[0.52,0.02],                                     /* temples */
-      [0,-0.62]                                                     /* crown */
+      [-eyeW,eyeY],[-eyeW+0.09,eyeY-0.03],[-eyeW+0.05,eyeY+0.05],
+      [ eyeW,eyeY],[ eyeW-0.09,eyeY-0.03],[ eyeW-0.05,eyeY+0.05],
+      [-eyeW-0.06,eyeY-0.16*brow],[-eyeW+0.10,eyeY-0.20*brow],
+      [ eyeW+0.06,eyeY-0.16*brow],[ eyeW-0.10,eyeY-0.20*brow],
+      [0,eyeY+0.02],[0.03,eyeY+noseL],[-0.05,eyeY+noseL+0.03],
+      [-mouthW,0.40],[0,0.44],[mouthW,0.40],[0,0.36],
+      [-0.52,0.02],[0.52,0.02],[0,-0.62]
     ];
     feat.forEach(p=>P.push(p));
-    /* mesh edges: outline chain + feature triangulation */
     const E=[];
     for(let i=0;i<O-1;i++)E.push([i,i+1]);
-    const f=(k)=>O+k;
+    const f=k=>O+k;
     [[0,1],[1,2],[2,0],[3,4],[4,5],[5,3],[6,7],[8,9],
      [10,11],[11,12],[12,10],[13,14],[14,15],[15,16],[16,13],
      [0,6],[3,8],[10,0],[10,3],[11,14],[13,17],[16,18],[19,17],[19,18],
-     [6,19],[9,19],[17,0],[18,3],[13,11],[16,11]
-    ].forEach(([a,b])=>E.push([f(a),f(b)]));
-    /* tie some outline points into the feature mesh for a full lattice */
-    for(let i=0;i<O;i+=3){
-      const near=[f(17),f(18),f(19),f(13),f(16)][(i/3)%5|0];
-      E.push([i,near]);
-    }
+     [6,19],[9,19],[17,0],[18,3],[13,11],[16,11]].forEach(([a,b])=>E.push([f(a),f(b)]));
+    for(let i=0;i<O;i+=3)E.push([i,[f(17),f(18),f(19),f(13),f(16)][(i/3)%5|0]]);
     return {P,E,O};
   }
 
-  let LAST_DT=0.016;
-  const STATE={idx:0,t:0,phase:'enter',face:buildFace(1),scan:0};
+  /* shuffled order so the sequence never repeats the same way twice */
+  let order=[],orderPos=0;
+  function reshuffle(){
+    order=CAST.map((_,i)=>i);
+    for(let i=order.length-1;i>0;i--){const j=(Math.random()*(i+1))|0;[order[i],order[j]]=[order[j],order[i]];}
+  }
+  reshuffle();
 
-  /* --- encoding motes: fragments of the 512-D embedding that pop up at
-     random points around the frame, fade, and respawn with new values --- */
+  let LAST_DT=0.016;
+  const STATE={sub:0,t:0,phase:'enter',face:buildFace(1),L:null};
+  const DUR={enter:0.65,scan:1.8,lock:2.3,exit:0.55};
+
+  /* LAYOUT: pick a fresh position each subject, then guarantee everything
+     fits inside the frame. Measuring before drawing is what stops the box
+     and the text from being cut off at any window size. */
+  function layout(){
+    const w=W(),h=H();
+    const bar=h*0.055, pad=Math.max(10,w*0.025);
+    const top=bar+pad, bot=h-bar-pad;
+    const availH=Math.max(40,bot-top), availW=Math.max(60,w-pad*2);
+    const narrow=w<520;
+
+    /* dossier text metrics decide how much width the face may use */
+    const S=CAST[order[orderPos]];
+    const nameSize=Math.max(13,Math.min(21,w*0.019));
+    ctx.font='800 '+nameSize+'px "Bricolage Grotesque",Georgia,serif';
+    let textW=ctx.measureText(S.n).width;
+    ctx.font='600 11px "Public Sans",sans-serif';
+    textW=Math.max(textW,ctx.measureText(S.r).width,110);
+    textW=Math.min(textW,availW*(narrow?0.9:0.42));
+
+    /* reticle must fit vertically: halfH = r*1.30*1.02 */
+    const gap=narrow?pad*0.6:pad*1.2;
+    const faceMaxW=narrow?availW:availW-textW-gap;
+    let r=Math.min(availH/2/1.33, faceMaxW/2/1.25);
+    r=Math.max(18,r*(0.86+Math.random()*0.14));      /* slight size variety */
+
+    const halfW=r*1.25, halfH=r*1.33;
+
+    let cx,cy,dx,dy,below=false;
+    if(narrow){
+      /* stack: face up top, dossier under it */
+      cx=pad+halfW+Math.random()*Math.max(0,availW-halfW*2);
+      cy=top+halfH;
+      dx=pad; dy=Math.min(bot-40,cy+halfH+16); below=true;
+      if(dy+46>bot){ r*=0.8; }
+    }else{
+      /* scatter: face sits left or right, dossier takes the other side */
+      const faceLeft=Math.random()<0.5;
+      const zoneW=availW-textW-gap;
+      const minX=pad+halfW, maxX=pad+Math.max(halfW,zoneW-halfW);
+      if(faceLeft){
+        cx=minX+Math.random()*Math.max(0,maxX-minX);
+        dx=Math.min(w-pad-textW, cx+halfW+gap);
+      }else{
+        cx=w-pad-Math.max(halfW,zoneW-halfW)+Math.random()*Math.max(0,maxX-minX);
+        cx=Math.max(w-pad-halfW-  (zoneW-halfW*2)*Math.random(), pad+textW+gap+halfW);
+        dx=pad;
+      }
+      /* vertical scatter within what fits */
+      const yMin=top+halfH, yMax=bot-halfH;
+      cy=yMin+Math.random()*Math.max(0,yMax-yMin);
+      dy=cy;
+    }
+
+    /* final clamps: nothing may leave the frame */
+    cx=Math.min(Math.max(cx,pad+halfW), w-pad-halfW);
+    cy=Math.min(Math.max(cy,top+halfH), bot-halfH);
+    dx=Math.min(Math.max(dx,pad), w-pad-textW);
+
+    STATE.L={w,h,bar,pad,top,bot,cx,cy,r,halfW,halfH,dx,dy,textW,nameSize,narrow,below};
+  }
+  layout();
+
+  /* encoding motes: fragments of the 512-D embedding, scattered */
   const MOTES=[];
   function spawnMote(){
-    const dims=[];
-    const n=2+((Math.random()*3)|0);
-    for(let i=0;i<n;i++){
-      const v=(Math.random()*2-1);
-      dims.push((v<0?'':' ')+v.toFixed(3));
-    }
-    return {
-      x:0.04+Math.random()*0.90,
-      y:0.10+Math.random()*0.80,
-      idx:(Math.random()*512)|0,
-      vals:dims,
-      a:0, life:0, ttl:0.7+Math.random()*1.5, phase:'in',
-      warm:Math.random()<0.35
-    };
+    const n=2+((Math.random()*3)|0),vals=[];
+    for(let i=0;i<n;i++){const v=Math.random()*2-1;vals.push((v<0?'':' ')+v.toFixed(3));}
+    return {x:Math.random(),y:Math.random(),idx:(Math.random()*512)|0,vals,
+            a:0,life:0,ttl:0.7+Math.random()*1.5,phase:'in',warm:Math.random()<0.35};
   }
   for(let i=0;i<7;i++){const m=spawnMote();m.life=Math.random()*m.ttl;m.a=Math.random();MOTES.push(m);}
 
-  function drawMotes(dt,w,h,appear){
-    ctx.save();
-    ctx.font='500 9px "Public Sans",sans-serif';
+  function drawMotes(dt,L,appear){
+    ctx.save();ctx.font='500 9px "Public Sans",sans-serif';
+    const x0=L.pad,x1=L.w-L.pad,y0=L.top,y1=L.bot;
     for(let i=MOTES.length-1;i>=0;i--){
-      const m=MOTES[i];
-      m.life+=dt;
+      const m=MOTES[i];m.life+=dt;
       if(m.phase==='in'){m.a+=dt*2.4;if(m.a>=1){m.a=1;m.phase='hold';}}
       else if(m.phase==='hold'){if(m.life>m.ttl)m.phase='out';}
-      else{m.a-=dt*1.8;}
+      else m.a-=dt*1.8;
       if(m.phase==='out'&&m.a<=0){MOTES.splice(i,1);continue;}
-      const X=m.x*w,Y=m.y*h;
-      ctx.globalAlpha=m.a*0.5*appear;
-      ctx.fillStyle=m.warm?HONEY:MUTED;
+      const txt=m.vals.join('  ');
+      const tw=ctx.measureText(txt).width;
+      /* keep every mote fully inside the safe area */
+      const X=Math.min(x0+m.x*(x1-x0), x1-tw);
+      const Y=Math.min(Math.max(y0+8+m.y*(y1-y0-16), y0+8), y1-6);
+      ctx.globalAlpha=m.a*0.5*appear;ctx.fillStyle=m.warm?HONEY:MUTED;
       ctx.fillText('e['+m.idx+']',X,Y);
-      ctx.globalAlpha=m.a*0.34*appear;
-      ctx.fillStyle=PAPER;
-      ctx.fillText(m.vals.join('  '),X,Y+11);
-      /* tick mark so it reads as instrument data, not stray text */
-      ctx.globalAlpha=m.a*0.30*appear;
-      ctx.fillStyle=m.warm?HONEY:MUTED;
+      ctx.globalAlpha=m.a*0.34*appear;ctx.fillStyle=PAPER;
+      ctx.fillText(txt,X,Y+11);
+      ctx.globalAlpha=m.a*0.28*appear;ctx.fillStyle=m.warm?HONEY:MUTED;
       ctx.fillRect(X-6,Y-7,1.5,18);
     }
     ctx.restore();
     while(MOTES.length<7)MOTES.push(spawnMote());
     if(Math.random()<0.05&&MOTES.length<11)MOTES.push(spawnMote());
   }
-  const DUR={enter:0.7,scan:1.9,lock:2.4,exit:0.6};
 
-  function ease(t){return t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;}
+  const ease=t=>t<0.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
 
-  function draw(now){
-    const w=W(),h=H();
+  function draw(){
+    const L=STATE.L,w=L.w,h=L.h;
     ctx.clearRect(0,0,w,h);
-
-    /* --- backdrop: soft studio gradient --- */
     const g=ctx.createRadialGradient(w*0.5,h*0.42,10,w*0.5,h*0.42,h*0.95);
     g.addColorStop(0,'#252231');g.addColorStop(1,'#141319');
     ctx.fillStyle=g;ctx.fillRect(0,0,w,h);
 
-    const S=CAST[STATE.idx], col=S.unknown?ROSE:LEAF;
-    const cx=w*0.42, cy=h*0.50, r=Math.min(w,h)*0.30;
-
-    /* progress within phase */
+    const S=CAST[order[orderPos]],col=S.unknown?ROSE:LEAF;
+    const {cx,cy,r,halfW,halfH,dx,textW,nameSize}=L;
     const p=Math.min(1,STATE.t/DUR[STATE.phase]);
     let appear=1;
     if(STATE.phase==='enter')appear=ease(p);
     if(STATE.phase==='exit')appear=1-ease(p);
 
-    /* --- the face mesh --- */
+    drawMotes(LAST_DT,L,appear*0.5+0.5);
+
     const F=STATE.face;
     ctx.save();ctx.globalAlpha=appear;
-    /* filled volume behind the wire, very subtle */
     ctx.beginPath();
-    for(let i=0;i<F.O;i++){const [x,y]=F.P[i];
-      const X=cx+x*r,Y=cy+y*r; i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
-    ctx.closePath();
-    ctx.fillStyle='rgba(232,168,96,0.05)';ctx.fill();
+    for(let i=0;i<F.O;i++){const[x,y]=F.P[i];const X=cx+x*r,Y=cy+y*r;i?ctx.lineTo(X,Y):ctx.moveTo(X,Y);}
+    ctx.closePath();ctx.fillStyle='rgba(232,168,96,0.05)';ctx.fill();
 
-    /* scan line position sweeps top->bottom during scan phase */
     const scanY=STATE.phase==='scan'?(cy-r*0.95)+(r*2.0)*p:null;
-
-    /* edges */
     F.E.forEach(([a,b])=>{
       const A=F.P[a],B=F.P[b];
-      const ax=cx+A[0]*r,ay=cy+A[1]*r,bx2=cx+B[0]*r,by2=cy+B[1]*r;
-      let alpha=0.30;
-      if(scanY!==null){
-        const d=Math.min(Math.abs(ay-scanY),Math.abs(by2-scanY));
-        alpha=d<26?0.95:(ay<scanY?0.42:0.16);   /* lit as the beam passes */
-      }else if(STATE.phase==='lock'||STATE.phase==='exit')alpha=0.46;
-      ctx.strokeStyle=col;ctx.globalAlpha=appear*alpha;ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx2,by2);ctx.stroke();
+      const ax=cx+A[0]*r,ay=cy+A[1]*r,bx=cx+B[0]*r,by=cy+B[1]*r;
+      let al=0.30;
+      if(scanY!==null){const d=Math.min(Math.abs(ay-scanY),Math.abs(by-scanY));
+        al=d<26?0.95:(ay<scanY?0.42:0.16);}
+      else if(STATE.phase!=='enter')al=0.46;
+      ctx.strokeStyle=col;ctx.globalAlpha=appear*al;ctx.lineWidth=1;
+      ctx.beginPath();ctx.moveTo(ax,ay);ctx.lineTo(bx,by);ctx.stroke();
     });
-    /* vertices */
     F.P.forEach(([x,y],i)=>{
       const X=cx+x*r,Y=cy+y*r;
-      let a=0.5;
-      if(scanY!==null){a=Math.abs(Y-scanY)<26?1:0.28;}
+      let a=0.5;if(scanY!==null)a=Math.abs(Y-scanY)<26?1:0.28;
       ctx.globalAlpha=appear*a;ctx.fillStyle=i<F.O?col:HONEY;
       ctx.beginPath();ctx.arc(X,Y,i<F.O?1.4:2.0,0,6.3);ctx.fill();
     });
     ctx.restore();
 
-    /* --- scan beam --- */
     if(scanY!==null){
       ctx.save();ctx.globalAlpha=appear*0.85;
       const lg=ctx.createLinearGradient(0,scanY-18,0,scanY+18);
-      lg.addColorStop(0,'rgba(232,168,96,0)');
-      lg.addColorStop(0.5,'rgba(232,168,96,0.5)');
+      lg.addColorStop(0,'rgba(232,168,96,0)');lg.addColorStop(0.5,'rgba(232,168,96,0.5)');
       lg.addColorStop(1,'rgba(232,168,96,0)');
-      ctx.fillStyle=lg;ctx.fillRect(cx-r*1.25,scanY-18,r*2.5,36);
+      ctx.fillStyle=lg;ctx.fillRect(cx-halfW,scanY-18,halfW*2,36);
       ctx.strokeStyle=HONEY;ctx.lineWidth=1.2;ctx.globalAlpha=appear;
-      ctx.beginPath();ctx.moveTo(cx-r*1.25,scanY);ctx.lineTo(cx+r*1.25,scanY);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(cx-halfW,scanY);ctx.lineTo(cx+halfW,scanY);ctx.stroke();
       ctx.restore();
     }
 
-    /* --- reticle: closes in during scan, locks on --- */
-    const closing=STATE.phase==='scan'?(1-p):0;
-    const rr=r*(1.30+closing*0.5);
+    /* reticle sized from halfW/halfH, so it can never overflow the frame */
+    const close=STATE.phase==='scan'?(1-p)*0.28:0;
+    const rw=halfW*(1+close),rh=halfH*(1+close);
     ctx.save();ctx.globalAlpha=appear*(STATE.phase==='enter'?p:1);
     ctx.strokeStyle=col;ctx.lineWidth=1.6;
-    const c=Math.min(30,rr*0.34);
+    const c=Math.min(28,rw*0.34,rh*0.28);
     [[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([sx,sy])=>{
-      const X=cx+sx*rr*0.92,Y=cy+sy*rr*1.02;
+      const X=cx+sx*rw,Y=cy+sy*rh;
       ctx.beginPath();ctx.moveTo(X-sx*c,Y);ctx.lineTo(X,Y);ctx.lineTo(X,Y-sy*c);ctx.stroke();
     });
     if(STATE.phase==='lock'||STATE.phase==='exit'){
-      ctx.globalAlpha=appear*0.30;ctx.lineWidth=1;
-      ctx.strokeRect(cx-rr*0.92,cy-rr*1.02,rr*1.84,rr*2.04);
+      ctx.globalAlpha=appear*0.28;ctx.lineWidth=1;
+      ctx.strokeRect(cx-rw,cy-rh,rw*2,rh*2);
     }
     ctx.restore();
 
-    /* --- dossier panel, types in on lock --- */
-    const dx=w*0.68;
+    /* dossier: anchored to measured width so text never runs off */
     if(STATE.phase==='lock'||STATE.phase==='exit'){
       const lp=STATE.phase==='lock'?Math.min(1,STATE.t/0.55):1;
+      const baseY=L.below?L.dy:cy-halfH*0.42;
       ctx.save();ctx.globalAlpha=appear*lp;
       ctx.strokeStyle='rgba(255,255,255,0.10)';ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(dx-18,cy-r*0.86);ctx.lineTo(dx-18,cy+r*0.5);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(dx-9,baseY-12);ctx.lineTo(dx-9,baseY+58);ctx.stroke();
 
       ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
-      ctx.fillText(S.id,dx,cy-r*0.68);
+      ctx.fillText('SUBJECT '+String(orderPos+1).padStart(2,'0'),dx,baseY);
 
-      /* name types out character by character */
-      const shown=S.n.slice(0,Math.ceil(S.n.length*Math.min(1,lp*1.5)));
-      ctx.fillStyle=PAPER;ctx.font='800 clamp(15px,2vw,21px) "Bricolage Grotesque",serif';
-      ctx.font='800 20px "Bricolage Grotesque",Georgia,serif';
-      ctx.fillText(shown,dx,cy-r*0.40);
+      ctx.fillStyle=PAPER;ctx.font='800 '+nameSize+'px "Bricolage Grotesque",Georgia,serif';
+      ctx.fillText(S.n.slice(0,Math.ceil(S.n.length*Math.min(1,lp*1.5))),dx,baseY+nameSize+6);
 
       ctx.fillStyle=col;ctx.font='600 11px "Public Sans",sans-serif';
-      ctx.fillText(S.r,dx,cy-r*0.16);
+      ctx.fillText(S.r,dx,baseY+nameSize+24);
 
       if(!S.unknown){
-        ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
-        ctx.fillText('MATCH CONFIDENCE',dx,cy+r*0.10);
-        /* confidence bar fills */
-        const bw=Math.min(150,w*0.20),bh=4;
-        ctx.fillStyle='rgba(255,255,255,0.10)';ctx.fillRect(dx,cy+r*0.18,bw,bh);
-        ctx.fillStyle=col;ctx.fillRect(dx,cy+r*0.18,bw*(S.m/100)*lp,bh);
-        ctx.fillStyle=PAPER;ctx.font='700 13px "Public Sans",sans-serif';
-        ctx.fillText((S.m*lp).toFixed(1)+'%',dx,cy+r*0.40);
+        const bw=Math.min(textW,150),by=baseY+nameSize+38;
+        ctx.fillStyle='rgba(255,255,255,0.10)';ctx.fillRect(dx,by,bw,4);
+        ctx.fillStyle=col;ctx.fillRect(dx,by,bw*(S.m/100)*lp,4);
+        ctx.fillStyle=PAPER;ctx.font='700 12px "Public Sans",sans-serif';
+        ctx.fillText((S.m*lp).toFixed(1)+'%',dx,by+20);
       }else{
-        ctx.fillStyle=ROSE;ctx.font='700 12px "Public Sans",sans-serif';
-        ctx.fillText('NOT IN DATABASE',dx,cy+r*0.14);
+        ctx.fillStyle=ROSE;ctx.font='700 11px "Public Sans",sans-serif';
+        ctx.fillText('NOT IN DATABASE',dx,baseY+nameSize+42);
       }
       ctx.restore();
     }
 
-    /* --- encoding motes scattered across the frame --- */
-    drawMotes(LAST_DT,w,h,appear*0.55+0.45);
-
-    /* --- status line, lower left --- */
     ctx.save();ctx.globalAlpha=0.9;
     ctx.fillStyle=MUTED;ctx.font='500 10px "Public Sans",sans-serif';
     const msg=STATE.phase==='scan'?'ANALYZING GEOMETRY':
-              STATE.phase==='lock'?(S.unknown?'NO RECORD FOUND':'IDENTITY CONFIRMED'):
-              'ACQUIRING SUBJECT';
-    ctx.fillText(msg,20,h-26);
-    /* progress ticks */
+              STATE.phase==='lock'?(S.unknown?'NO RECORD FOUND':'IDENTITY CONFIRMED'):'ACQUIRING SUBJECT';
+    ctx.fillText(msg,L.pad,L.bot-6);
     for(let i=0;i<CAST.length;i++){
-      ctx.fillStyle=i===STATE.idx?HONEY:'rgba(255,255,255,0.16)';
-      ctx.fillRect(20+i*13,h-18,8,2);
+      ctx.fillStyle=i===orderPos?HONEY:'rgba(255,255,255,0.16)';
+      ctx.fillRect(L.pad+i*13,L.bot+2,8,2);
     }
     ctx.restore();
 
-    /* --- cinematic finish: letterbox, vignette, grain --- */
-    const bar=h*0.055;
-    ctx.fillStyle='#0f0e13';ctx.fillRect(0,0,w,bar);ctx.fillRect(0,h-bar,w,bar);
+    ctx.fillStyle='#0f0e13';ctx.fillRect(0,0,w,L.bar);ctx.fillRect(0,h-L.bar,w,L.bar);
     const vg=ctx.createRadialGradient(w*0.5,h*0.5,h*0.25,w*0.5,h*0.5,h*0.85);
     vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,0.55)');
     ctx.fillStyle=vg;ctx.fillRect(0,0,w,h);
     ctx.globalAlpha=0.035;
-    for(let i=0;i<130;i++){
-      ctx.fillStyle=Math.random()>0.5?'#fff':'#000';
-      ctx.fillRect(Math.random()*w,bar+Math.random()*(h-bar*2),1,1);
-    }
+    for(let i=0;i<130;i++){ctx.fillStyle=Math.random()>0.5?'#fff':'#000';
+      ctx.fillRect(Math.random()*w,L.bar+Math.random()*(h-L.bar*2),1,1);}
     ctx.globalAlpha=1;
   }
 
@@ -4208,18 +4226,19 @@ document.querySelectorAll('.copy').forEach(b=>{
     STATE.t+=dt;
     if(STATE.t>=DUR[STATE.phase]){
       STATE.t=0;
-      const order=['enter','scan','lock','exit'];
-      const i=order.indexOf(STATE.phase);
-      if(i===order.length-1){
-        STATE.idx=(STATE.idx+1)%CAST.length;
-        STATE.face=buildFace(STATE.idx+2);
+      const seq=['enter','scan','lock','exit'],i=seq.indexOf(STATE.phase);
+      if(i===seq.length-1){
+        orderPos++;
+        if(orderPos>=order.length){reshuffle();orderPos=0;}
+        STATE.face=buildFace(Date.now()%99991+orderPos*577);
+        layout();                       /* new position every subject */
         STATE.phase='enter';
-      }else STATE.phase=order[i+1];
+      }else STATE.phase=seq[i+1];
     }
-    draw(now);
+    draw();
     if(!reduce)requestAnimationFrame(loop);
   }
-  if(reduce){STATE.phase='lock';STATE.t=DUR.lock*0.6;draw(performance.now());}
+  if(reduce){STATE.phase='lock';STATE.t=DUR.lock*0.6;draw();}
   else requestAnimationFrame(loop);
 })();
 </script>
