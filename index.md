@@ -269,7 +269,7 @@
 
     <div class="mile">
       <div class="mile-top"><span class="tag">First Milestone</span><h3>Capturing and organizing faces</h3></div>
-      <div class="video"><iframe src="https://www.youtube.com/embed/wKA9XhxVHsE" title="First milestone" allowfullscreen loading="lazy"></iframe></div>
+      <div class="video"><iframe src="https://www.youtube.com/embed/2hndztdxSKc" title="First milestone" allowfullscreen loading="lazy"></iframe></div>
       <div class="points">
         <div class="pt"><span class="m">—</span><span>Set up OpenCV and Python scripts that capture photos on spacebar press and organize them into named folders so the model can associate names with faces</span></div>
         <div class="pt"><span class="m">—</span><span>The quality of the camera was worse than expected only ever sharp when the subject was directly in front of it</span></div>
@@ -280,6 +280,7 @@
 
     <div class="mile dim">
       <div class="mile-top"><span class="tag">Starter Milestone</span><h3>Retro arcade build</h3></div>
+      <div class="video"><iframe src="https://www.youtube.com/embed/wKA9XhxVHsE" title="Starter milestone" allowfullscreen loading="lazy"></iframe></div>
       <div class="points">
         <div class="pt"><span class="m">—</span><span>Built retro arcade device by connecting a battery to the metal contacts on the back of the device, soldering the side charging port and buttons (movement and reset), then finally putting it all together in the acrylic case with the screws.</span></div>
       </div>
