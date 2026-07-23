@@ -218,6 +218,7 @@
     <a href="#schematics">Schematics</a>
     <a href="#code">Code</a>
     <a href="#parts">Parts</a>
+    <a href="#resources">Resources</a>
   </div>
 </nav>
 
