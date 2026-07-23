@@ -3915,7 +3915,24 @@ if __name__ == &quot;__main__&quot;:
     </tbody>
   </table>
 </section>
-
+<!-- ============ RESOURCES ============ -->
+<section id="resources">
+  <div class="sec-head"><span class="sec-idx">06</span><h2>Resources</h2></div>
+  <p class="sec-sub">The main tools, libraries, and references used to build this project.</p>
+  <table class="bom">
+    <thead><tr><th>Resource</th><th>What it was used for</th><th>Link</th></tr></thead>
+    <tbody>
+      <tr><td>InsightFace</td><td>Face detection and 512-D recognition with the buffalo_l model</td><td><a href="https://github.com/deepinsight/insightface">Link</a></td></tr>
+      <tr><td>OpenCV</td><td>Image processing, template tracking, and the on-screen display</td><td><a href="https://opencv.org/">Link</a></td></tr>
+      <tr><td>Picamera2</td><td>Controlling the Arducam camera and reading frames on the Pi</td><td><a href="https://github.com/raspberrypi/picamera2">Link</a></td></tr>
+      <tr><td>Arducam 64MP Docs</td><td>Camera setup, autofocus, and sensor mode reference</td><td><a href="https://docs.arducam.com/Raspberry-Pi-Camera/Native-camera/64MP-Hawkeye/">Link</a></td></tr>
+      <tr><td>NumPy</td><td>Array math for the frames, embeddings, and measurements</td><td><a href="https://numpy.org/">Link</a></td></tr>
+      <tr><td>ONNX Runtime</td><td>Running the InsightFace models on the Pi</td><td><a href="https://onnxruntime.ai/">Link</a></td></tr>
+      <tr><td>Raspberry Pi OS Docs</td><td>Setup, headless config, and Wi-Fi and hotspot connection</td><td><a href="https://www.raspberrypi.com/documentation/">Link</a></td></tr>
+      <tr><td>Onshape</td><td>Designing the 3D-printed case</td><td><a href="https://www.onshape.com/">Link</a></td></tr>
+    </tbody>
+  </table>
+</section>
 <footer>
   <div>Facial Recognition System · built on a Raspberry Pi 4 with an Arducam 64MP camera · Aarush H, Evergreen Valley High School</div>
 </footer>
