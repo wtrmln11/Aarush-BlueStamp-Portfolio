@@ -258,7 +258,7 @@
 
     <div class="miles">
     <div class="mile">
-      <div class="mile-top"><span class="tag">Modification</span><h3>[Placeholder title]</h3></div>
+      <div class="mile-top"><span class="tag">Modification</span><h3>Portability and Optimization</h3></div>
       <div class="video"><iframe src="https://www.youtube.com/embed/WHtOP8uvjtg" title="Modification milestone" allowfullscreen loading="lazy"></iframe></div>
       <div class="points">
         <div class="pt"><span class="m">—</span><span>Replaced the recognition engine with InsightFace’s buffalo_l model, which identifies faces by turning each face into a 512 number embedding for far more accurate identification at a distance</span></div>
