@@ -416,10 +416,10 @@
     <figure><img src="case2.png" alt="Case schematic 2" loading="lazy"></figure>
     <figure><img src="case3.png" alt="Case schematic 3" loading="lazy"></figure>
     <figure><img src="case4.png" alt="Case schematic 4" loading="lazy"></figure>
-    <figure><div class="ph">Slot 05</div></figure>
-    <figure><div class="ph">Slot 06</div></figure>
-    <figure><div class="ph">Slot 07</div></figure>
-    <figure><div class="ph">Slot 08</div></figure>
+    <figure><img src="case5.png" alt="Case schematic 5" loading="lazy"></figure>
+    <figure><img src="case6.png" alt="Case schematic 6" loading="lazy"></figure>
+    <figure><img src="case7.png" alt="Case schematic 7" loading="lazy"></figure>
+    <figure><img src="case8.png" alt="Case schematic 8" loading="lazy"></figure>
   </div>
 </section>
 
