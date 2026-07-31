@@ -3950,7 +3950,7 @@ if __name__ == &quot;__main__&quot;:
 <footer>
   <div>Facial Recognition System · built on a Raspberry Pi 4 with an Arducam 64MP camera · Aarush H, Evergreen Valley High School</div>
 </footer>
-</main>
+
 
 <button id="top" aria-label="Back to top">↑</button>
 
@@ -4288,5 +4288,4 @@ document.querySelectorAll('.copy').forEach(b=>{
   else requestAnimationFrame(loop);
 })();
 </script>
-</body>
-</html>
+
